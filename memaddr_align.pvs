@@ -1,0 +1,19 @@
+memaddr_align[N: below(10)] : THEORY
+BEGIN
+
+IMPORTING memaddr
+
+a,a1 : VAR dmem_addr
+bv,bv1 : VAR bvec[N]
+
+memaddr_align(a,bv): dmem_addr = LAMBDA (x : below(32)) : IF x<N THEN bv(x) ELSE a(x) ENDIF
+
+memaddr_align_replace: LEMMA memaddr_align(a,bv) = memaddr_align(a1,bv) IMPLIES memaddr_align(a,bv1) = memaddr_align(a1,bv1)
+memaddr_align_replace_2: LEMMA memaddr_align(a,bv) /= memaddr_align(a1,bv) IMPLIES memaddr_align(a,bv1) /= memaddr_align(a1,bv1)
+
+memaddr_align_diff: LEMMA bv /= bv1 IMPLIES memaddr_align(a,bv) /= memaddr_align(a1, bv1)
+
+AUTO_REWRITE+ memaddr_align_diff
+
+END memaddr_align
+ 

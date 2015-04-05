@@ -1,0 +1,16 @@
+specification_state: THEORY
+BEGIN
+
+IMPORTING abstract_instructions
+
+
+%% Specification state.
+state_A : TYPE = [# rf: regfile,
+		    dmem: data_memory,
+		    pc: bvec[32],
+		    imem: instruction_memory,
+                    epc: bvec[32], %%异常返回地址
+                    llflag: bool
+                    #]
+  
+END specification_state

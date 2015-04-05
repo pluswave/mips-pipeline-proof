@@ -1,0 +1,24 @@
+memaddr: THEORY
+BEGIN
+
+    MIN_EXP_T: TYPE = { a: nat | 10< a AND a  < 31 } CONTAINING 18
+    MIN_EXP: MIN_EXP_T
+    MAX_EXP_T: TYPE = { a: nat | a < 33 AND MIN_EXP + 1 < a } CONTAINING MIN_EXP + 2
+    MAX_EXP: MAX_EXP_T
+
+%% 最小和最大的数据内存地址
+    MIN_DATA_ADDR: nat = exp2(MIN_EXP)
+    MAX_DATA_ADDR: nat = exp2(MAX_EXP)
+
+
+%% 地址类型
+    dmem_addr_valid?( a :bvec[32]) : bool = a^(MAX_EXP-1,MIN_EXP) /= bvec0[MAX_EXP-MIN_EXP] 
+        AND ( MAX_EXP < 32 IMPLIES a^(31,MAX_EXP-1) = bvec0[32-MAX_EXP])
+
+    dmem_addr: TYPE = { a : bvec[32] | dmem_addr_valid?(a) }
+
+    dmem_addr_dontcare: dmem_addr
+
+
+END memaddr
+

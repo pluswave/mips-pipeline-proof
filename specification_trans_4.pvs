@@ -1,0 +1,465 @@
+ifu: theory
+BEGIN
+
+IMPORTING specification
+
+ifu : TYPE = [# pc: bvec[32],
+                imem: instruction_memory
+              #]
+
+ifu_input: TYPE = [# npc: bvec[32],
+                     npc_valid?: bool
+                  #]
+
+ifu_output: TYPE = [#  ins: instruction,
+                       addr_valid?: bool
+                   #]    
+
+next_ifu(input: ifu_input, curr: ifu): ifu = (# pc := 
+                                                      IF input`npc_valid?  THEN input`npc
+                                                      ELSE curr`pc + 4
+                                                      ENDIF,
+                                                imem := curr`imem #)      
+                                                      
+
+get_instr(curr: ifu):   bvec[32] = IF imem_addr_pred(curr`pc) THEN curr`imem(curr`pc) ELSE zero ENDIF
+
+get_addr_valid(curr: ifu) : bool = imem_addr_pred(curr`pc)
+
+next_output(curr: ifu): ifu_output = (# ins := get_instr(curr),
+                                        addr_valid? := get_addr_valid(curr)
+                                      #)
+
+
+END ifu
+
+rf: theory
+BEGIN
+IMPORTING specification
+
+rf_input_read: TYPE = [# addr_1: bvec[5],
+                         addr_2: bvec[5]
+                       #]
+                       
+rf_input_write: TYPE = [#                       
+                    addr:  bvec[5],
+                    value: bvec[32],
+                    en:    bool
+                     #]
+
+rf_output: TYPE = [# val_1: bvec[32],
+                     val_2: bvec[32]
+                  #]
+
+next_rf(input: rf_input_write, curr: regfile): regfile = IF input`en THEN assign_r(curr, input`addr, input`value) ELSE curr ENDIF 
+
+get_output(input: rf_input_read, curr: regfile): rf_output = (# val_1 := select_r(curr, input`addr_1),
+                                                                val_2 := select_r(curr, input`addr_2)
+                                                               #)
+END rf
+
+
+dmem: theory
+BEGIN
+IMPORTING instruction_decoder
+
+dmem_output_val : TYPE = bvec[32]
+
+% 写端口
+dmem_input: TYPE = [# addr:  bvec[32], value: bvec[32],wen: bool, mwidth: mem_access_width, se: bool #]
+
+% 读写共用，地址检查 
+dmem_invalid_addr: TYPE = bool
+
+write_dmem(input: dmem_input, curr: data_memory): data_memory 
+           = IF input`wen AND dmem_addr_valid?(input`addr) THEN 
+             TABLE
+             input`mwidth
+           |  w8  | write8(curr, input`addr, input`value ^ (7,0))   ||
+           | w16  | write16(curr, input`addr, input`value ^ (15,0)) ||
+           | w32  | write32(curr, input`addr, input`value) ||
+             ENDTABLE
+           ELSE curr
+           ENDIF
+           
+get_val(input: dmem_input, curr: data_memory): dmem_output_val =
+          IF NOT input`wen AND dmem_addr_valid?(input`addr) THEN 
+          LET r8 = read8(curr, input`addr ),
+              r16 = read16(curr, input`addr ),
+              r32 = read32(curr, input`addr )
+          IN
+        TABLE
+      input`mwidth,                        input`se
+                |[ TRUE                      | FALSE                          ]|
+      %----------+---------------------------+--------------------------------++ 
+      | w8       |  sign_extend[8](32)(r8 )  |  zero_extend[8](32)(r8)        || 
+      | w16      |  sign_extend[16](32)(r16) |  zero_extend[16](32)(r16)      || 
+      | w32      |      r32                  |   r32                          ||
+      %----------+---------------------------+--------------------------------++ 
+             ENDTABLE
+           ELSE zero
+           ENDIF
+
+get_addr_invalid(input: dmem_input) : dmem_invalid_addr = NOT dmem_addr_valid?(input`addr)
+
+a, b: VAR dmem_input
+dmem: VAR data_memory
+dmem_input_affect_eq(a, b): bool = a`addr = b`addr AND a`wen = b`wen AND a`mwidth = b`mwidth 
+                                  AND a`se = b`se AND (a`wen IMPLIES a`value = b`value )
+
+dmem_input_eq_prop_1: LEMMA dmem_input_affect_eq(a,b) IMPLIES write_dmem(a,dmem) = write_dmem(b,dmem) 
+
+%|- dmem_input_eq_prop_* : PROOF
+%|- (then (skosimp) (assert) (auto-rewrite-theory dmem :always? T) (assert)
+%|-  (flatten) (case-analysis))
+%|- QED
+
+dmem_input_eq_prop_2: LEMMA dmem_input_affect_eq(a,b) IMPLIES get_val(a,dmem) = get_val(b,dmem)
+dmem_input_eq_prop_3: LEMMA dmem_input_affect_eq(a,b) IMPLIES get_addr_invalid(a) = get_addr_invalid(b)
+
+dmem_input_eq_symmetric: LEMMA symmetric?(dmem_input_affect_eq)
+
+
+dmem_input_affect_eq_2: (symmetric?[dmem_input]) = dmem_input_affect_eq 
+
+END dmem
+
+
+
+specification_trans_4: theory
+BEGIN
+
+IMPORTING datapath
+IMPORTING instruction_decoder
+IMPORTING ifu
+IMPORTING dmem
+IMPORTING rf
+
+a: VAR state_A
+
+get_ifu(a): ifu = (# pc := a`pc, 
+                     imem := a`imem #)
+
+get_ifu_out: [ state_A -> ifu_output ] = next_output o get_ifu
+
+field_instr(a) : instruction  =  get_ifu_out(a) ` ins 
+
+field_valid_pc(a): bool       =  get_ifu_out(a)  ` addr_valid?
+
+get_op: [state_A -> abs_opcode ] = get_abs_opcode o field_instr
+
+get_decoder_signal : [state_A -> decoder_signal ] =  decoder o get_op
+
+field_input_read(a): rf_input_read = LET ins = field_instr(a) IN (# addr_1 := rs(ins), addr_2 := rt(ins) #)
+
+get_rf_output(a) : rf_output = get_output(field_input_read(a), a`rf)
+
+field_rs(a) : bvec[32]  =  get_rf_output(a)`val_1
+
+field_rt(a) : bvec[32] =   get_rf_output(a)`val_2
+
+get_pc_4(a): bvec[32] = get_ifu(a)`pc + 4
+
+get_shamt(a): bvec[32] = zero_extend[5](32)( shamtbv(field_instr(a)))
+
+get_zext(a):  bvec[32] = zero_extend[16](32) (short_immed_of (field_instr(a)))
+
+get_sext(a):  bvec[32] = sign_extend[16](32) (short_immed_of (field_instr(a)))
+
+get_upper_imm(a): bvec[32] = zero_extend_lsend[16](32) (short_immed_of(field_instr(a)))
+
+get_src_1(a): bvec[32] = 
+          TABLE
+           get_decoder_signal(a)`sela
+           %--------%---------------++
+           |  rs    |  field_rs(a)  ||
+           |  rt    |  field_rt(a)  ||
+           %--------%---------------++
+          ENDTABLE
+
+get_src_2(a): bvec[32] =
+          TABLE
+           get_decoder_signal(a)`selb
+           %--------%---------------++
+           |  rt    |  field_rt(a)  ||
+           |  shamt |  get_shamt(a) ||
+           |  zext  |  get_zext(a)  ||
+           |  sext  |  get_sext(a)  ||
+           %--------%---------------++
+          ENDTABLE
+
+get_eq(a): bool = field_rs(a) = field_rt(a)
+
+get_branch_pc(a): bvec[32] = get_pc_4(a) + get_sext(a)
+
+get_jmp_pc(a) : bvec[32] = get_pc_4(a) ^(31,28) o long_immed_of(field_instr(a)) o b00
+
+get_alu_out(a): alu_out = LET dec = get_decoder_signal(a) IN alu(get_src_1(a),get_src_2(a),dec`aluop)
+
+field_alu_out_bv(a): bvec[32] = get_alu_out(a)`out
+
+field_alu_out_ov(a): bool  = get_alu_out(a)`ov
+
+get_exception_ov(a) : bool = get_decoder_signal(a)`checkov? AND field_alu_out_ov(a)
+
+get_exception_dmem_addr(a): bool = LET dec = get_decoder_signal(a) IN ( dec`load? OR dec`store? ) AND NOT dmem_addr_valid?(field_alu_out_bv(a))
+
+get_exception_instr(a): bool = get_decoder_signal(a)`invalid?
+
+get_exception(a): bool = NOT field_valid_pc(a) OR get_exception_instr(a) OR get_exception_ov(a) OR get_exception_dmem_addr(a)
+                          
+
+get_dmem_input(a): dmem_input = (#  addr := field_alu_out_bv(a) ,
+                                    value  := field_rt(a),
+                                    wen  := get_decoder_signal(a)`store? AND field_valid_pc(a) AND NOT get_exception_instr(a) AND ( llflag(a) OR NOT get_decoder_signal(a)`atom? ),
+                                    mwidth := get_decoder_signal(a)`mwidth,
+                                    se   := get_decoder_signal(a)`loadse?
+                                 #)
+
+get_load_val(a): bvec[32] = get_val(get_dmem_input(a), a`dmem)
+
+get_wb_val(a): bvec[32] = LET dec = get_decoder_signal(a) IN
+            TABLE
+           dec`wbsrc
+           %--------+-----------------------%%
+           | aluout | field_alu_out_bv(a)   ||
+           | lui    | get_upper_imm(a)      ||
+           | load   | get_load_val(a)       ||
+           | pc4    | get_pc_4(a)           ||
+           %--------+-----------------------%%          
+          ENDTABLE
+
+get_dst(a): reg_addr =
+           LET ins = field_instr(a) IN
+           TABLE
+           get_decoder_signal(a)`seld
+           %--------+---------++
+           | rd     | rd(ins) ||
+           | rt     | rt(ins) ||
+           | ra     | ra_reg  ||
+           %--------+---------++
+           ENDTABLE
+
+
+next_rf_4(a): regfile =
+     LET dec = get_decoder_signal(a),
+         exception = get_exception(a)
+     IN 
+     TABLE
+     | dec`wb? AND NOT exception | assign_r(a`rf, get_dst(a), get_wb_val(a)) ||
+     | ELSE                      | a`rf                                      ||
+     ENDTABLE
+
+
+next_dmem_4(a): data_memory = write_dmem( get_dmem_input(a), a`dmem )
+
+get_npc(a): bvec[32] =
+    LET dec = get_decoder_signal(a) IN
+    IF get_exception_instr(a) OR get_exception_ov(a) OR get_exception_dmem_addr(a) OR NOT get_addr_valid(get_ifu(a)) THEN exception_entry ELSE
+    TABLE
+    | dec`beq? AND field_rs(a) = field_rt(a) |  get_branch_pc(a) ||
+    | dec`bne? AND field_rs(a) /= field_rt(a)|  get_branch_pc(a) ||
+    | dec`jmp? |  get_jmp_pc(a)    ||
+    | dec`jr?  |  field_rs(a)      ||
+    | ELSE     |  zero             ||
+    ENDTABLE
+    ENDIF
+    
+get_npc_valid(a): bool = LET dec = get_decoder_signal(a) IN get_exception_instr(a) OR get_exception_ov(a) OR get_exception_dmem_addr(a) OR NOT get_addr_valid(get_ifu(a)) OR dec`jmp? OR dec`jr? OR (dec`beq? AND get_eq(a) ) OR (dec`bne? AND NOT get_eq(a))
+
+get_ifu_input(a): ifu_input = (# npc := get_npc(a),
+                  npc_valid? := get_npc_valid(a)
+                #)
+
+next_pc_4(a) : bvec[32] = next_ifu ( get_ifu_input(a), get_ifu(a) )`pc
+
+next_epc_4(a) : bvec[32] = IF get_exception(a) THEN a`pc ELSE a`epc ENDIF
+
+next_llflag_4(a) : bool  =
+   IF get_exception(a) THEN FALSE
+   ELSE  LET dec = get_decoder_signal(a) IN 
+   TABLE  
+   %-------------------------+-----------%%
+   | dec`atom? AND dec`load? | TRUE      ||
+   | dec`atom? AND dec`store?| FALSE     ||
+   | ELSE                    | llflag(a) ||
+   %-------------------------+-----------%%
+   ENDTABLE
+  ENDIF
+
+
+% 单周期参考CPU模型
+A_step_4(a: state_A): state_A = (# pc := next_pc_4(a),
+                                   rf := next_rf_4(a),
+                                   dmem := next_dmem_4(a),
+                                   imem := imem(a),
+                                   epc  := next_epc_4(a),
+                                   llflag := next_llflag_4(a)
+                                 #)  
+
+A_step_new(a:state_A,m:nat) : state_A =
+	IF m = 0 then a
+	ELSE A_step_4(a)  %% m is either 0 or 1. 
+	ENDIF
+
+
+
+END specification_trans_4
+
+
+spec_trans_4_props: THEORY
+BEGIN
+importing specification_trans_3
+importing specification_trans_4
+importing decoder_props
+
+a:  VAR state_A
+a1: VAR valid_pc_state_A
+
+instr_prop: LEMMA  field_instr(a) = instr(a)
+
+%|- instr_prop : PROOF
+%|- (grind)
+%|- QED
+
+rs_prop:    LEMMA  field_rs(a) = rs(a)
+
+%|- rs_prop : PROOF
+%|- (grind)
+%|- QED
+
+rt_prop:    LEMMA  field_rt(a) = rt(a)
+
+%|- rt_prop : PROOF
+%|- (grind)
+%|- QED
+
+decoder_1:  LEMMA  get_decoder_signal(a1) = decoder(a1)
+
+%|- decoder_1 : PROOF
+%|- (then (skosimp) (auto-rewrite-theory specification_trans_4 :always? T)
+%|- (auto-rewrite-theory spec_trans_4_props)  (auto-rewrite o) 
+%|- (stop-rewrite field_instr) (expand decoder) (expand op) (assert))
+%|- QED
+
+src1_prop:  LEMMA  get_src_1(a1) = src1(a1)
+
+%|- src*_prop : PROOF
+%|- (then (skosimp) (auto-rewrite-theory specification_trans_4 :always? T)
+%|- (auto-rewrite-theory spec_trans_4_props)  (auto-rewrite o) 
+%|- (stop-rewrite field_instr) (stop-rewrite get_decoder_signal) 
+%|- (expand src$1) (assert) (case-analysis))
+%|- QED
+
+
+src2_prop:  LEMMA  get_src_2(a1) = src2(a1)
+
+dst_prop:   LEMMA  get_dst(a1)  = dst(a1)
+
+%|- dst_prop : PROOF
+%|- (then (skosimp) (auto-rewrite-theory specification_trans_4 :always? T)
+%|- (auto-rewrite-theory spec_trans_4_props)  (auto-rewrite o) 
+%|- (stop-rewrite field_instr) (stop-rewrite get_decoder_signal) 
+%|- (expand dst) (assert) (case-analysis))
+%|- QED
+
+
+exception_prop: LEMMA  get_exception(a1) = exception?(a1)
+
+%|- exception_prop : PROOF
+%|- (then (skosimp) (auto-rewrite-theory specification_trans_4 :always? T)
+%|- (auto-rewrite-theory spec_trans_4_props)  (auto-rewrite o) 
+%|- (stop-rewrite field_instr) (stop-rewrite get_decoder_signal)
+%|- (auto-rewrite-theory decoder_props) (auto-rewrite specification_trans_3.decoder)
+%|- (auto-rewrite specification_trans_3.alu_out) (auto-rewrite-theory ifu :always T)
+%|- (expand exception?) (assert) (case-analysis))
+%|- QED
+
+alu_out_prop_1: LEMMA field_alu_out_bv(a1) = alu_out(a1)`out
+
+%|- alu_out_prop_1 : PROOF
+%|- (then (skosimp) (expand field_alu_out_bv) (expand get_alu_out)
+%|-  (expand alu_out) (auto-rewrite-theory spec_trans_4_props) (assert))
+%|- QED
+alu_out_prop_2: LEMMA field_alu_out_ov(a1) = alu_out(a1)`ov
+
+%|- alu_out_prop_2 : PROOF
+%|- (then (skosimp) (expand alu_out)
+%|-  (auto-rewrite-theory spec_trans_4_props) (assert)
+%|-  (expand field_alu_out_ov) (expand get_alu_out) (assert))
+%|- QED
+load_val: LEMMA get_decoder_signal(a1)`load? AND NOT get_exception(a1) IMPLIES get_load_val(a1) = loadval(a1)
+
+%|- load_val : PROOF
+%|- (then (skosimp) (expand get_load_val) (expand get_dmem_input)
+%|-  (expand loadval) (expand get_val)
+%|-  (auto-rewrite-theory spec_trans_4_props)
+%|-  (auto-rewrite-theory decoder_props)
+%|-  (auto-rewrite specification_trans_3.decoder)
+%|-  (auto-rewrite specification_trans_3.exception?) (case-analysis))
+%|- QED
+pc_inc_prop: LEMMA get_pc_4(a1)  = normal_inc_pc(a1)
+
+%|- pc_inc_prop : PROOF
+%|- (then (skosimp) (grind))
+%|- QED
+
+wb_val_prop: LEMMA NOT get_exception(a1) AND get_decoder_signal(a1)`wb? IMPLIES get_wb_val(a1) = wb_val(a1)
+
+%|- wb_val_prop : PROOF
+%|- (then (skosimp) (expand get_wb_val) (expand wb_val) (use decoder_1)
+%|-  (auto-rewrite-theory spec_trans_4_props) (use load_val) (lsfa 2)
+%|-  (spread (lsfa 2)
+%|-   ((then (hide-all-but (1)) (grind))
+%|-    (then (expand decoder) (use decoder_load) (assert) (lsfa 2)))))
+%|- QED
+
+
+
+step_rf_4: THEOREM next_rf_4 = next_rf_3
+
+%|- step_*_4 : PROOF
+%|- (then (auto-rewrite-theory spec_trans_4_props)
+%|-  (auto-rewrite-theory specification_trans_4 :defs T)
+%|-  (auto-rewrite-theory rf :defs T) (auto-rewrite-theory dmem :defs T)
+%|-  (auto-rewrite-theory ifu :defs T) (auto-rewrite-theory decoder_props)
+%|-  (stop-rewrite field_instr) (stop-rewrite field_rs)
+%|-  (stop-rewrite field_rt) (stop-rewrite get_decoder_signal)
+%|-  (stop-rewrite get_src_1) (stop-rewrite get_src_2)
+%|-  (stop-rewrite get_dst) (stop-rewrite get_exception)
+%|-  (stop-rewrite field_alu_out_ov) (stop-rewrite field_alu_out_bv) 
+%|-  (decompose-equality) (expand next_$1_4) (expand next_$1_3)
+%|-  (auto-rewrite o) (case-analysis) (expand get_exception)
+%|-  (expand field_valid_pc) (assert))
+%|- QED
+step_dmem_4: THEOREM next_dmem_4 = next_dmem_3
+
+%|- step_dmem_4 : PROOF
+%|- (then (auto-rewrite-theory spec_trans_4_props :always? T)
+%|-  (auto-rewrite-theory specification_trans_4 :always? T)
+%|-  (auto-rewrite-theory rf :defs T :always? T)
+%|-  (auto-rewrite-theory dmem :defs T :always? T)
+%|-  (auto-rewrite-theory ifu :defs T :always? T)
+%|-  (auto-rewrite-theory decoder_props :always? T)
+%|-  (stop-rewrite field_instr) (stop-rewrite field_rs)
+%|-  (stop-rewrite field_rt) (stop-rewrite get_decoder_signal)
+%|-  (stop-rewrite get_src_1) (stop-rewrite get_src_2)
+%|-  (stop-rewrite get_dst) (stop-rewrite get_exception)
+%|-  (stop-rewrite field_alu_out_ov) (stop-rewrite field_alu_out_bv)
+%|-  (decompose-equality) (expand next_dmem_3) (auto-rewrite o)
+%|-  (auto-rewrite! specification_trans_3.decoder)
+%|-  (auto-rewrite! specification_trans_3.exception?) (case-analysis))
+%|- QED
+step_pc_4: THEOREM next_pc_4 = next_pc_3
+step_epc_4: THEOREM next_epc_4 = next_epc_3
+step_llflag_4: THEOREM next_llflag_4 = next_llflag_3
+
+
+
+
+% 单周期满足spec的两个要求
+single_cycle_2: THEOREM A_step = A_step_4  IMPLIES spec_0_goal AND spec_1_goal 
+
+
+
+END spec_trans_4_props

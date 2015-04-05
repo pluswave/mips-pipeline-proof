@@ -1,0 +1,132 @@
+%% 寄存器堆以及数据存储器的读写
+stores: THEORY
+BEGIN
+
+IMPORTING memaddr_align
+IMPORTING bvlogic
+%%%---------------------------------------------------------------------
+%%% 寄存器堆类型
+    
+reg_addr: TYPE = bvec[5]
+regfile: TYPE = [reg_addr -> bvec[32]]
+
+
+%%---
+%% 寄存器堆操作.
+
+%% 读寄存器.
+select(rf:regfile,r:reg_addr):bvec[32] = 
+	rf(r)
+
+%% 写寄存器.
+assign(rf:regfile,r:reg_addr,data:bvec[32]):regfile =
+	rf WITH [(r) := data]
+
+
+%----
+%%% 0号寄存器总是读到0，写入无效
+zero_reg: reg_addr = fill[5](FALSE)
+zero: bvec[32] = fill[32](FALSE)
+
+%equal_minus_zero: LEMMA FORALL(bv1,bv2:bvec[32]): bv1=bv2 IFF bv1-bv2=zero
+
+
+select_r(rf:regfile,r:reg_addr): bvec[32] = IF r=zero_reg THEN zero ELSE select(rf,r) ENDIF
+assign_r(rf:regfile,r:reg_addr,data:bvec[32]):regfile = IF r=zero_reg THEN rf ELSE assign(rf,r,data) ENDIF
+
+%---
+%%% 31号寄存器为返回地址
+ra_reg: reg_addr = fill[5](TRUE)
+
+%%--
+%% 读写寄存器堆的两个属性.
+r1, r2 : VAR reg_addr
+rf : VAR regfile
+d32: VAR bvec[32]
+
+select_assign1: LEMMA
+        r2 = r1 IMPLIES select(assign(rf,r1,d32),r2) = d32
+
+select_assign2: LEMMA
+        r2 /= r1 IMPLIES select(assign(rf,r1,d32),r2) = select(rf,r2)
+
+select_assign3: LEMMA
+        r2 /= zero_reg AND r2 = r1 IMPLIES select_r(assign_r(rf,r1,d32),r2) =  d32
+
+select_assign4: LEMMA
+        r2 /= r1 IMPLIES select_r(assign_r(rf,r1,d32),r2) = select_r(rf,r2)
+
+select_assign5: LEMMA
+        r2 = zero_reg IMPLIES select_r(rf,r2) =  zero
+
+select_assign6: LEMMA
+        r2 = zero_reg IMPLIES assign_r(rf,r2,d32) = rf
+
+%%%---------------------------------------------------------------------
+%%% 数据内存类型
+
+
+data_memory: TYPE = [dmem_addr -> bvec[8] ]
+dmem : VAR data_memory
+addr, addr2: VAR dmem_addr
+d8: VAR bvec[8]
+d16: VAR bvec[16]
+
+%% 数据内存上的操作,假定为Little Endian
+read8(dmem,addr):bvec[8] =
+	dmem(addr)
+
+write8(dmem,addr,d8): data_memory =
+	dmem WITH [ (addr) := d8 ]
+
+align_16 : [ dmem_addr, bvec[1] -> dmem_addr ] = memaddr_align[1]
+align_32 : [ dmem_addr, bvec[2] -> dmem_addr ] = memaddr_align[2]
+
+read16(dmem,addr):bvec[16] =
+    read8(dmem, align_16(addr,b1) ) o  read8(dmem, align_16(addr,b0))  
+
+write16(dmem,addr,d16) : data_memory =
+    write8( write8(dmem, align_16(addr,b1), d16^(15,8) ),
+            align_16(addr,b0), d16^(7,0) )
+
+read32(dmem,addr):bvec[32] = 
+    read16(dmem, align_32(addr,b1 o b0 )) o read16(dmem, align_32(addr, b0 o b0)) 
+
+write32(dmem,addr, d32): data_memory =  
+    write16( write16( dmem, align_32(addr,b1 o b0), d32^(31,16)),
+                align_32(addr, b0 o b0), d32^(15,0) )
+
+
+%%--
+%% 8位读写属性
+
+read_write_8_1: LEMMA
+        addr2 = addr IMPLIES read8(write8(dmem,addr,d8),addr2) = d8
+
+read_write_8_2: LEMMA
+        addr2 /= addr IMPLIES read8(write8(dmem,addr,d8),addr2) = read8(dmem,addr2)
+
+
+%%--
+%% 16位读写属性，与8位类似
+
+read_write_16_1: LEMMA
+        align_16(addr2,b0) = align_16(addr,b0) IMPLIES read16(write16(dmem,addr,d16),addr2) = d16
+
+read_write_16_2: LEMMA
+        align_16(addr2,b0) /= align_16(addr,b0) IMPLIES read16(write16(dmem,addr,d16),addr2) = read16(dmem,addr2)
+
+
+%%--
+%% 32位读写属性，与16位类似
+
+read_write_32_1: LEMMA
+        align_32(addr2,b0 o b0) = align_32(addr,b0 o b0) IMPLIES read32(write32(dmem,addr,d32),addr2) = d32
+
+read_write_32_2: LEMMA
+        align_32(addr2,b0 o b0) /= align_32(addr,b0 o b0) IMPLIES read32(write32(dmem,addr,d32),addr2) = read32(dmem,addr2)
+
+
+
+
+END stores

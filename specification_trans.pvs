@@ -1,0 +1,180 @@
+%% ISA level specification 
+specification_trans: THEORY
+BEGIN
+
+IMPORTING specification
+
+% --- PC更新
+a: VAR state_A
+
+next_pc_1(a): bvec[32] =  IF NOT imem_addr_pred(pc(a)) THEN exception_entry
+          ELSE LET
+           ins = instr(a),
+           op = get_abs_opcode(ins)
+           IN TABLE
+            op
+           %--------+-------------------------------------------------------------------------------------------------------------%%
+           |add     | IF NOT overflow(rs(a),rt(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                                      ||
+           |sub     | IF NOT ( bv2int(rt(a)) = minint[32] XOR overflow(rs(a), -rt(a))) THEN pc(a) + 4 ELSE exception_entry ENDIF  ||
+           |jr      | rs(a)                                                                                                       ||
+           |beq     | IF rs(a) = rt(a) THEN pc(a) + 4 + sign_extend[16](32)(short_immed_of(ins)) ELSE pc(a) + 4 ENDIF             ||
+           |bne     | IF rs(a) /= rt(a) THEN pc(a) + 4 + sign_extend[16](32)(short_immed_of(ins)) ELSE pc(a) + 4 ENDIF            ||
+           |j       | ( pc(a) + 4 ) ^ (31,28) o long_immed_of(ins) o b00                                                          ||  
+           |jal     | ( pc(a) + 4 ) ^ (31,28) o long_immed_of(ins) o b00                                                          ||
+           |addi    | IF NOT overflow(rs(a),sign_extend[16](32)(short_immed_of(ins))) THEN pc(a) + 4 ELSE exception_entry ENDIF   ||
+           |lb      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |lbu     | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |lh      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |lhu     | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |lw      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |ll      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |sb      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |sh      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |sw      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            ||
+           |sc      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN pc(a) + 4 ELSE exception_entry ENDIF                            || 
+           |invalid | exception_entry                                                                                             ||
+           | ELSE   | pc(a) + 4                                                                                                   ||
+           %--------+-------------------------------------------------------------------------------------------------------------%%
+           ENDTABLE
+         ENDIF
+
+
+next_rf_1(a): regfile = IF NOT imem_addr_pred(pc(a)) THEN rf(a)
+ ELSE LET ins = instr(a),
+   op=get_abs_opcode(ins) IN
+    TABLE
+      op
+    %-------+---------------------------------------------------------------------------------------------------------------------------------------------------%%  
+    | add   | IF NOT overflow(rs(a),rt(a)) THEN assign_r(rf(a), rd(ins), rs(a) + rt(a))  ELSE rf(a) ENDIF                                                       ||
+    | addu  | assign_r(rf(a), rd(ins), rs(a) + rt(a))                                                                                                           ||
+    | sub   | IF NOT ( bv2int(rt(a)) = minint[32] XOR overflow(rs(a), -rt(a))) THEN assign_r(rf(a), rd(ins),rs(a) - rt(a)) ELSE rf(a) ENDIF                     ||
+    | subu  | assign_r(rf(a), rd(ins), rs(a) - rt(a))                                                                                                           ||
+    | and   | assign_r(rf(a), rd(ins), rs(a) AND rt(a))                                                                                                         ||
+    | or    | assign_r(rf(a), rd(ins), rs(a) OR rt(a))                                                                                                          ||
+    | nor   | assign_r(rf(a), rd(ins), rs(a) XOR rt(a))                                                                                                         ||
+    | slt   | assign_r(rf(a), rd(ins), alu_slt(rs(a), rt(a)))                                                                                                   ||
+    | sltu  | assign_r(rf(a), rd(ins), alu_sltu(rs(a), rt(a)))                                                                                                  ||
+    | srl   | assign_r(rf(a), rd(ins), right_shift(shamt(ins), rt(a)))                                                                                          ||
+    | sll   | assign_r(rf(a), rd(ins), left_shift(shamt(ins), rt(a)))                                                                                           ||
+    | addi  | IF NOT overflow(rs(a), sign_extend[16](32)(short_immed_of(ins))) THEN
+              assign_r(rf(a), rt(ins),rs(a) + sign_extend[16](32)(short_immed_of(ins))) ELSE rf(a) ENDIF                                                        ||
+    | addiu | assign_r(rf(a), rt(ins),rs(a) + sign_extend[16](32)(short_immed_of(ins)))                                                                         ||
+    | andi  | assign_r(rf(a), rt(ins),rs(a) AND zero_extend[16](32)(short_immed_of(ins)))                                                                       ||
+    | ori   | assign_r(rf(a), rt(ins),rs(a) OR zero_extend[16](32)(short_immed_of(ins)))                                                                        ||
+    | lui   | assign_r(rf(a), rt(ins),zero_extend_lsend[16](32)(short_immed_of(ins)))                                                                           ||
+    | slti  | assign_r(rf(a), rt(ins),alu_slt(rs(a), sign_extend[16](32)(short_immed_of(ins))))                                                                 ||
+    | sltiu | assign_r(rf(a), rt(ins),alu_sltu(rs(a), zero_extend[16](32)(short_immed_of(ins))))                                                                ||
+    | lbu   | IF  dmem_addr_valid?(mem_addr_calcu(a)) THEN assign_r(rf(a), rt(ins), zero_extend[8](32)(read8(dmem(a),mem_addr_calcu(a)))) ELSE rf(a) ENDIF      ||
+    | lb    | IF  dmem_addr_valid?(mem_addr_calcu(a)) THEN assign_r(rf(a), rt(ins), sign_extend[8](32)(read8(dmem(a),mem_addr_calcu(a)))) ELSE rf(a) ENDIF      ||
+    | lh    | IF  dmem_addr_valid?(mem_addr_calcu(a)) THEN assign_r(rf(a), rt(ins), sign_extend[16](32)(read16(dmem(a),mem_addr_calcu(a)))) ELSE rf(a) ENDIF    ||
+    | lhu   | IF  dmem_addr_valid?(mem_addr_calcu(a)) THEN assign_r(rf(a), rt(ins), zero_extend[16](32)(read16(dmem(a),mem_addr_calcu(a)))) ELSE rf(a) ENDIF    ||
+    | lw    | IF  dmem_addr_valid?(mem_addr_calcu(a)) THEN assign_r(rf(a), rt(ins), read32(dmem(a),mem_addr_calcu(a))) ELSE rf(a) ENDIF                         ||
+    | ll    | IF  dmem_addr_valid?(mem_addr_calcu(a)) THEN assign_r(rf(a), rt(ins), read32(dmem(a),mem_addr_calcu(a))) ELSE rf(a) ENDIF                         ||
+    | jal   | assign_r(rf(a),ra_reg, pc(a) + 4)                                                                                                                 ||
+    | ELSE  | rf(a)                                                                                                                                             ||
+    %-------+---------------------------------------------------------------------------------------------------------------------------------------------------%%
+    ENDTABLE
+ENDIF
+
+next_dmem_1(a): data_memory =
+ IF NOT imem_addr_pred(pc(a)) THEN dmem(a) ELSE
+ LET ins = instr(a), op=get_abs_opcode(ins),src=rt(a) IN
+ TABLE
+    op
+  %----+--------------------------------------------------------------------------------------------------------------------------------------------%%
+  | sw | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN write32(dmem(a),mem_addr_calcu(a),src) ELSE dmem(a) ENDIF                                      ||
+  | sc | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN IF llflag(a) THEN write32(dmem(a),mem_addr_calcu(a),src) ELSE dmem(a) ENDIF ELSE dmem(a) ENDIF ||
+  | sh | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN write16(dmem(a),mem_addr_calcu(a),src^(15,0)) ELSE dmem(a) ENDIF                               ||
+  | sb | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN write8(dmem(a),mem_addr_calcu(a),src^(7,0)) ELSE dmem(a) ENDIF                                 ||
+  |ELSE| dmem(a)                                                                                                                                    ||
+  %----+--------------------------------------------------------------------------------------------------------------------------------------------%%
+ ENDTABLE
+ENDIF
+
+next_epc_1(a): bvec[32] =  IF NOT imem_addr_pred(pc(a)) THEN pc(a) ELSE
+ LET ins = instr(a), op=get_abs_opcode(ins) IN
+ TABLE
+  op
+ %---------+---------------------------------------------------------------------------------------------------%%
+ | add     | IF NOT overflow(rs(a),rt(a)) THEN epc(a) ELSE pc(a) ENDIF                                         ||
+ | sub     | IF NOT ( bv2int(rt(a)) = minint[32] XOR overflow(rs(a), -rt(a)))  THEN epc(a) ELSE pc(a) ENDIF    ||
+ | addi    | IF NOT overflow(rs(a),sign_extend[16](32)(short_immed_of(ins))) THEN epc(a) ELSE pc(a) ENDIF      ||
+ | lb      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | lbu     | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | lh      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | lhu     | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | lw      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | ll      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | sb      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | sh      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | sw      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | sc      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN epc(a) ELSE pc(a) ENDIF                               ||
+ | invalid | pc(a)                                                                                             ||
+ | ELSE    | epc(a)                                                                                            ||
+ %---------+---------------------------------------------------------------------------------------------------%%
+ ENDTABLE
+ENDIF
+
+
+next_llflag_1(a) : bool = 
+  IF NOT imem_addr_pred(pc(a)) THEN FALSE ELSE
+  LET ins = instr(a), op=get_abs_opcode(ins) IN
+   TABLE
+      op
+   %---------+-----------------------------------------------------------------------------------------------------%% 
+   | add     | IF NOT overflow(rs(a),rt(a)) THEN  llflag(a) ELSE FALSE ENDIF                                       ||   
+   | sub     | IF NOT ( bv2int(rt(a)) = minint[32] XOR overflow(rs(a), -rt(a)))  THEN llflag(a) ELSE FALSE ENDIF   ||
+   | addi    | IF NOT overflow(rs(a),sign_extend[16](32)(short_immed_of(ins))) THEN llflag(a) ELSE FALSE ENDIF     ||
+   | lb      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN llflag(a) ELSE FALSE ENDIF                              ||
+   | lbu     | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN llflag(a) ELSE FALSE ENDIF                              ||
+   | lh      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN llflag(a) ELSE FALSE ENDIF                              ||
+   | lhu     | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN llflag(a) ELSE FALSE ENDIF                              ||
+   | lw      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN llflag(a) ELSE FALSE ENDIF                              ||
+   | ll      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN TRUE ELSE FALSE ENDIF                                   ||
+   | sb      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN llflag(a) ELSE FALSE ENDIF                              ||
+   | sh      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN llflag(a) ELSE FALSE ENDIF                              ||
+   | sw      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN llflag(a) ELSE FALSE ENDIF                              ||
+   | sc      | IF dmem_addr_valid?(mem_addr_calcu(a)) THEN FALSE ELSE FALSE ENDIF                                  ||
+   | invalid | FALSE                                                                                               ||
+   | ELSE    | llflag(a)                                                                                           ||
+   %---------+-----------------------------------------------------------------------------------------------------%% 
+   ENDTABLE
+  ENDIF
+
+
+
+step_pc_goal : bool = next_pc = next_pc_1
+
+% ---- 寄存器堆更新
+step_rf_goal : bool = next_rf = next_rf_1
+% ----- 数据存储器更新
+
+
+step_dmem_goal: bool = next_dmem = next_dmem_1
+
+% ----- 指令存储器，只读
+
+
+% ----- 异常返回地址
+step_epc_goal: bool = next_epc = next_epc_1
+% ----- 原子操作标记更新
+step_llflag_goal: bool = next_llflag = next_llflag_1
+
+specification_trans: THEOREM step_pc_goal AND step_rf_goal AND step_dmem_goal AND step_epc_goal AND step_llflag_goal IMPLIES spec_1_goal
+
+%|- specification_trans : PROOF
+%|- (then (auto-rewrite-theory specification_trans) (assert)
+%|-  (expand spec_1_goal) (flatten) (skosimp) (decompose-equality -)
+%|-  (decompose-equality -) (decompose-equality -) (decompose-equality -)
+%|-  (decompose-equality -) (inst?) (inst?) (inst?) (inst?) (inst?)
+%|-  (expand action_exception) (expand action_rf_only)
+%|-  (expand action_pc_only) (expand action_pc_rf)
+%|-  (expand action_dmem_llflag) (expand action_rf_llflag)
+%|-  (expand action_dmem_only) (expand nochange_dmem) (expand nochange_rf)
+%|-  (expand nochange_epc) (expand nochange_llflag)
+%|-  (spread (case "imem_addr_pred(pc(a!1))")
+%|-   ((then (assert) (split-abs-opcode)) (assert))))
+%|- QED
+
+
+END specification_trans
