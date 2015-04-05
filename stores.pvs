@@ -3,7 +3,7 @@ stores: THEORY
 BEGIN
 
 IMPORTING memaddr_align
-IMPORTING bvlogic
+IMPORTING bitvectors@top
 %%%---------------------------------------------------------------------
 %%% 寄存器堆类型
     

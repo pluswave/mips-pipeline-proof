@@ -4,7 +4,7 @@ instructions: THEORY
 BEGIN
 
 IMPORTING stores
-
+IMPORTING bvconsts
 %%% Instruction type.
    instruction: TYPE = bvec[32]
    opcode: TYPE = {r_op, i_addi, i_addiu, i_andi, i_beq, i_bne, i_lbu, i_lhu, i_lb, i_lh, i_ll, i_lui, i_lw, i_ori, i_slti, i_sltiu, i_sb, i_sc, i_sh, i_sw, j_j, j_jal, invalid_op}

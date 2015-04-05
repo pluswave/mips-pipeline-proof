@@ -1,0 +1,10 @@
+bvconsts: THEORY
+BEGIN
+
+b00: bvec[2] = b0 o b0
+b01: bvec[2] = b0 o b1
+b10: bvec[2] = b1 o b0
+b11: bvec[2] = b1 o b1
+
+
+END bvconsts
