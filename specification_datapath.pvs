@@ -1,0 +1,148 @@
+datapath_ctrl_signals: THEORY
+BEGIN
+
+alu_op : TYPE = { add, sub, and, or, xor, sll, srl, slt, sltu, inv}
+dmem_access_width : TYPE = {w8,w16,w32}
+
+
+END datapath_ctrl_signals
+
+
+
+datapath: THEORY
+BEGIN
+
+IMPORTING datapath_ctrl_signals
+IMPORTING stores
+IMPORTING abstract_instructions
+
+% alu
+alu_out: TYPE = [# out: bvec[32], 
+                   ov:  bool  % 溢出？
+                #]
+
+alu(a:bvec[32], b:bvec[32], op:alu_op) : alu_out =
+       (# 
+          out := 
+         TABLE
+           op
+         %-------+--------------------------------++  
+         | add   | a + b                          ||
+         | sub   | a - b                          ||
+         | and   | a and b                        ||
+         | or    | a or  b                        ||
+         | xor   | a xor b                        ||
+         | sll   | left_shift(bv2nat(b^(4,0)),a)  ||
+         | srl   | right_shift(bv2nat(b^(4,0)),a) ||
+         | slt   | alu_slt(a,b)                   ||
+         | sltu  | alu_sltu(a,b)                  ||
+         | inv   | a - b                          ||
+         %-------+--------------------------------++
+         ENDTABLE,
+          ov :=
+         TABLE
+           op
+         %-----+------------------------------------------++  
+         | add | overflow(a,b)                            ||
+         | sub | bv2int(b)=minint[32] XOR overflow(a,-b)  ||
+         | ELSE| FALSE                                    ||
+         %-----+------------------------------------------++         
+         ENDTABLE
+        #)
+
+
+% rf
+
+rf_input_read: TYPE = [# addr_1: bvec[5],
+                         addr_2: bvec[5]
+                       #]
+                       
+rf_input_write: TYPE = [#                       
+                    addr:  bvec[5],
+                    value: bvec[32],
+                    en:    bool
+                     #]
+
+rf_output: TYPE = [# val_1: bvec[32],
+                     val_2: bvec[32]
+                  #]
+
+rf_update(input: rf_input_write, curr: regfile): regfile = IF input`en THEN assign_r(curr, input`addr, input`value) ELSE curr ENDIF 
+
+rf_get_output(input: rf_input_read, curr: regfile): rf_output
+   = (# val_1 := select_r(curr, input`addr_1),
+        val_2 := select_r(curr, input`addr_2)
+   #)
+
+
+%dmem
+% 读端口
+dmem_input_read: TYPE = [# addr:  bvec[32], mwidth: dmem_access_width, se: bool #]
+
+% 写端口
+dmem_input_write: TYPE = [# addr: bvec[32], value: bvec[32], mwidth: dmem_access_width, wen: bool #]
+
+
+dmem_update(input: dmem_input_write, curr: data_memory): data_memory 
+           = IF input`wen AND dmem_addr_valid?(input`addr) THEN 
+             TABLE
+             input`mwidth
+           |  w8  | write8(curr, input`addr, input`value ^ (7,0))   ||
+           | w16  | write16(curr, input`addr, input`value ^ (15,0)) ||
+           | w32  | write32(curr, input`addr, input`value) ||
+             ENDTABLE
+           ELSE curr
+           ENDIF
+           
+dmem_get_output(input: dmem_input_read, curr: data_memory): bvec[32] =
+          IF dmem_addr_valid?(input`addr) THEN 
+          LET r8 = read8(curr, input`addr ),
+              r16 = read16(curr, input`addr ),
+              r32 = read32(curr, input`addr )
+          IN
+        TABLE
+      input`mwidth,                        input`se
+                |[ TRUE                      | FALSE                          ]|
+      %----------+---------------------------+--------------------------------++ 
+      | w8       |  sign_extend[8](32)(r8 )  |  zero_extend[8](32)(r8)        || 
+      | w16      |  sign_extend[16](32)(r16) |  zero_extend[16](32)(r16)      || 
+      | w32      |      r32                  |   r32                          ||
+      %----------+---------------------------+--------------------------------++ 
+             ENDTABLE
+           ELSE zero
+           ENDIF
+
+
+% ifu
+
+ifu : TYPE = [# pc: bvec[32],
+                imem: instruction_memory
+              #]
+
+ifu_input: TYPE = [# npc: bvec[32],
+                     npc_valid?: bool
+                  #]
+
+ifu_output: TYPE = [#  ins: instruction,
+                       addr_valid?: bool
+                   #]    
+
+ifu_update(input: ifu_input, curr: ifu): ifu = (# pc := 
+                                                      IF input`npc_valid?  THEN input`npc
+                                                      ELSE curr`pc + 4
+                                                      ENDIF,
+                                                imem := curr`imem #)      
+                                                      
+
+ifu_get_instr(curr: ifu):   bvec[32] = IF imem_addr_pred(curr`pc) THEN curr`imem(curr`pc) ELSE zero ENDIF
+
+ifu_get_addr_valid(curr: ifu) : bool = imem_addr_pred(curr`pc)
+
+ifu_get_output(curr: ifu): ifu_output = (# ins := ifu_get_instr(curr),
+                                           addr_valid? := ifu_get_addr_valid(curr)
+                                      #)
+
+
+
+
+END datapath

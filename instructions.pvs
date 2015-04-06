@@ -4,7 +4,7 @@ instructions: THEORY
 BEGIN
 
 IMPORTING stores
-IMPORTING bvconsts
+%IMPORTING bvconsts
 %%% Instruction type.
    instruction: TYPE = bvec[32]
    opcode: TYPE = {r_op, i_addi, i_addiu, i_andi, i_beq, i_bne, i_lbu, i_lhu, i_lb, i_lh, i_ll, i_lui, i_lw, i_ori, i_slti, i_sltiu, i_sb, i_sc, i_sh, i_sw, j_j, j_jal, invalid_op}
@@ -79,9 +79,9 @@ funct_disjoint_2:  AXIOM get_funct(bv1) /= get_funct(bv2) IMPLIES bv1 /= bv2
 
 %%% 指令分段
    op(ins:instruction): opcode = get_opcode(ins ^ (31,26))
-   rs(ins:instruction): reg_addr = ins  ^ (25,21) %R/I
-   rt(ins:instruction): reg_addr = ins  ^ (20,16) %R/I
-   rd(ins:instruction): reg_addr = ins ^  (15,11) %R
+   rs(ins:instruction): bvec[5] = ins  ^ (25,21) %R/I
+   rt(ins:instruction): bvec[5] = ins  ^ (20,16) %R/I
+   rd(ins:instruction): bvec[5] = ins ^  (15,11) %R
    shamtbv(ins:instruction): bvec[5] = ins^(10,6)
    shamt(ins:instruction): below(32) = bv2nat(shamtbv(ins)) %R
    func(ins:instruction): funct = get_funct(ins ^ (5,0)) %R
@@ -95,8 +95,6 @@ funct_disjoint_2:  AXIOM get_funct(bv1) /= get_funct(bv2) IMPLIES bv1 /= bv2
 
 %%% 指令分类
 
-   % 1
-   one : bvec[32] = fill[31](false) o b1
 
 
 
@@ -199,105 +197,3 @@ BEGIN
                         
 
 END abstract_instructions
-
-
-
-
-instruction_category : THEORY
-BEGIN
-   IMPORTING instructions
-
-   % rd = rs <OP> rt 9条
-   op_type_alu_r(ins:instruction) :  bool = op(ins) = r_op AND
-       (   func(ins) = r_funct_add OR func(ins) = r_funct_addu OR func(ins) = r_funct_sub OR func(ins) = r_funct_subu
-        OR func(ins) = r_funct_and OR func(ins) = r_funct_nor  OR func(ins) = r_funct_or  OR func(ins) = r_funct_slt
-        OR func(ins) = r_funct_sltu )
-  
-   % rd = rs <op> signed_extend(short_imm) OR rd = rs <op> zeroExtend(short_imm) 6条
-   op_type_alu_imm(ins:instruction): bool = op(ins) = i_addi OR op(ins) = i_addiu OR op(ins) = i_andi OR op(ins) = i_ori 
-        OR op(ins) = i_slti OR op(ins) = i_sltiu
-
-   % lui 1条
-   op_type_lui(ins:instruction): bool = op(ins) = i_lui
-
-   % rd = rt << shamt / rd = rt >> shamt 2条
-   op_type_alu_shift(ins:instruction): bool = op(ins) = r_op AND
-      (func(ins) = r_funct_sll OR func(ins) = r_funct_srl )
-
-   % 读取指令 6条
-   op_type_load(ins:instruction): bool = op(ins) = i_lw OR op(ins) = i_lhu OR op(ins) = i_lbu OR op(ins) = i_lb OR op(ins) = i_lh  OR op(ins) = i_ll      
-
-   % 存储指令 4条
-   op_type_store(ins:instruction): bool = op(ins) = i_sw OR op(ins) = i_sh OR op(ins) = i_sb OR op(ins) = i_sc
-
-   % 跳转指令 5条
-   op_type_branch(ins:instruction): bool = op(ins) = i_beq OR op(ins) = i_bne
-
-   op_type_jmp(ins:instruction): bool =  op(ins) = j_j OR op(ins) = j_jal OR ( op(ins) = r_op AND func(ins) = r_funct_jr )
-
-%% 7种指令，9+6+1+2+6+4+5 = 33条
-
-   %有效指令
-   valid_instruction?(ins:instruction):bool = op(ins) /= invalid_op AND NOT (op(ins) = r_op AND func(ins) = invalid_funct)
-                                              
-
-
-% 指令必须只有一种
-op_type_disjoint: LEMMA FORALL(ins: instruction): pairwise_disjoint?( cons( op_type_alu_r(ins),   
-                                                              cons( op_type_alu_imm(ins),
-                                                              cons( op_type_lui(ins),
-                                                              cons( op_type_alu_shift(ins),
-                                                              cons( op_type_load(ins),
-                                                              cons( op_type_store(ins),
-                                                              cons( op_type_branch(ins),
-                                                              cons( op_type_jmp(ins),
-                                                              null)))))))))
-
-
-%二分分类
-   may_overflow_by_add(ins:instruction): bool = ( op_type_alu_r(ins) AND func(ins) = r_funct_add  ) OR op(ins) = i_addi   
-   may_overflow_by_sub(ins:instruction): bool = op_type_alu_r(ins) AND func(ins) = r_funct_sub  
-   mem_access?(ins:instruction): bool = op_type_load(ins) OR op_type_store(ins)
-
-
-   alu_op(ins:instruction) : [bvec[32],bvec[32] -> bvec[32]] =
-         IF op_type_alu_r(ins) THEN
-            IF func(ins) = r_funct_add OR func(ins) = r_funct_addu   THEN +
-            ELSIF func(ins) = r_funct_sub OR func(ins) = r_funct_subu THEN -
-            ELSIF func(ins) = r_funct_and THEN AND
-            ELSIF func(ins) = r_funct_or  THEN OR
-            ELSIF func(ins) = r_funct_nor THEN XOR
-            ELSIF func(ins) = r_funct_slt  THEN alu_slt
-            ELSIF func(ins) = r_funct_sltu THEN alu_sltu
-            ELSE -
-            ENDIF
-         ELSE
-            IF op(ins) = i_addi OR op(ins) = i_addiu THEN +
-            ELSIF op(ins) = i_andi THEN AND
-            ELSIF op(ins) = i_ori  THEN OR
-            ELSIF op(ins) = i_slti THEN alu_slt
-            ELSIF op(ins) = i_sltiu THEN alu_sltu
-            ELSE -
-            ENDIF
-         ENDIF
-
-   alu_shift(ins:instruction)(b : bvec[32],s: below(32)) : bvec[32] = 
-        IF op_type_alu_shift(ins) THEN
-           IF func(ins) = r_funct_sll THEN left_shift(s,b)       
-           ELSIF func(ins) = r_funct_srl THEN right_shift(s,b)
-           ELSE zero
-           ENDIF
-        ELSE
-           zero
-        ENDIF      
-
-   alu_overflow(ins:instruction)(bv1,bv2:bvec[32]) : bool =  IF may_overflow_by_add(ins) THEN overflow(bv1,bv2)
-                                                             ELSIF may_overflow_by_sub(ins) THEN
-                                                                IF bv2int(bv2)=minint[32] THEN
-                                                                     NOT overflow(bv1,-bv2) % 根据定义，-bv2 = bv2 ，无法用32数表达
-                                                                ELSE overflow(bv1,-bv2)
-                                                                ENDIF
-                                                             ELSE false ENDIF
-
-
-END instruction_category

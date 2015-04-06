@@ -1,7 +1,7 @@
 specification_state: THEORY
 BEGIN
 
-IMPORTING abstract_instructions
+IMPORTING instructions
 
 
 %% Specification state.

@@ -1,6 +1,7 @@
 specification: THEORY
 BEGIN
 
+importing abstract_instructions
 importing specification_state
 
 a: VAR state_A

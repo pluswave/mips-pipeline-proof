@@ -7,4 +7,9 @@ b10: bvec[2] = b1 o b0
 b11: bvec[2] = b1 o b1
 
 
+zero_reg: bvec[5] = fill[5](FALSE)
+zero: bvec[32] = fill[32](FALSE)
+
+one : bvec[32] = fill[31](false) o b1
+
 END bvconsts

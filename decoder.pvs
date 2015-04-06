@@ -1,0 +1,241 @@
+instruction_decoder: THEORY
+BEGIN
+
+IMPORTING datapath_ctrl_signals
+IMPORTING abstract_instructions
+%  指令译码
+
+% 指令分类
+load?(op:abs_opcode): bool =  op=lb OR op=lbu OR op=lh OR op=lhu OR op=lw OR op=ll  
+store?(op:abs_opcode): bool = op=sb OR op=sh  OR op=sw OR op=sc
+
+mem_access?(op:abs_opcode): bool = load?(op) OR store?(op)
+
+alu_r?(op:abs_opcode): bool = add?(op) OR sub?(op) OR addu?(op) OR sub?(op) OR subu?(op) OR op=and OR op=or OR op=nor OR slt?(op) OR sltu?(op)        
+alu_shift?(op:abs_opcode): bool= sll?(op) OR srl?(op)
+alu_imm_logic?(op:abs_opcode): bool = andi?(op) OR ori?(op)
+alu_imm_cmp?(op:abs_opcode): bool = slti?(op) OR sltiu?(op)
+alu_imm_other?(op:abs_opcode): bool = addi?(op) OR addiu?(op) 
+alu_imm?(op:abs_opcode): bool = alu_imm_logic?(op) OR alu_imm_cmp?(op) OR  alu_imm_other?(op)
+need_wb?(op:abs_opcode): bool = alu_r?(op) OR alu_imm?(op) OR alu_shift?(op) OR lui?(op) OR load?(op) OR jal?(op)
+
+need_alu?(op:abs_opcode): bool = alu_r?(op) OR alu_shift?(op) OR alu_imm?(op) OR mem_access?(op)
+
+branch?(op:abs_opcode): bool=beq?(op) OR bne?(op)
+
+jmp?(op:abs_opcode): bool=j?(op) OR jr?(op) OR jal?(op)
+
+
+%  alu控制信号
+decode_alu_op(op: abs_opcode): alu_op = 
+ TABLE
+ %----------------------------------------------------+---------%%  
+ | add?(op) OR addu?(op) OR addi?(op) OR addiu?(op)   | add     ||
+ | sub?(op) OR subu?(op)                              | sub     ||
+ | op=and   OR andi?(op)                              | and     ||
+ | op=or OR ori?(op)                                  | or      ||
+ | nor?(op)                                           | xor     ||
+ | srl?(op)                                           | srl     ||
+ | slt?(op) OR slti?(op)                              | slt     ||
+ | sltu?(op) OR sltiu?(op)                            | sltu    ||
+ | sll?(op)                                           | sll     ||
+ | mem_access?(op)                                    | add     ||
+ | ELSE                                               | inv     ||
+ %----------------------------------------------------+---------%%
+ ENDTABLE
+
+
+% 端口选择
+sel_a : TYPE = {rs, rt} 
+sel_b : TYPE = {rt, shamt, zext, sext}
+sel_dest: TYPE = {rd, rt, ra}
+
+decode_sel_a(op: abs_opcode): sel_a =
+      TABLE
+      %----------------+-----------++
+      | alu_r?(op)     |     rs    ||
+      | alu_shift?(op) |     rt    ||
+      | alu_imm?(op)   |     rs    ||
+      | mem_access?(op)|     rs    ||
+      | ELSE           |     rs    ||
+      %----------------+-----------++
+      ENDTABLE 
+
+decode_sel_b(op: abs_opcode):  sel_b =
+      TABLE
+      %--------------------+-------++
+      | alu_r?(op)         | rt    ||
+      | alu_shift?(op)     | shamt ||
+      | alu_imm_other?(op) | sext  ||
+      | alu_imm_logic?(op) | zext  ||
+      | sltiu?(op)         | zext  ||
+      | slti?(op)          | sext  ||
+      | mem_access?(op)    | sext  ||
+      | ELSE               | zext  ||
+      %--------------------+-------++
+      ENDTABLE
+
+decode_sel_dest(op: abs_opcode): sel_dest =
+      TABLE
+      %---------------------+--------++
+      | alu_r?(op)          |  rd    ||
+      | alu_shift?(op)      |  rd    ||
+      | alu_imm?(op)        |  rt    ||
+      | load?(op)           |  rt    ||
+      | lui?(op)            |  rt    ||
+      | jal?(op)            |  ra    ||
+      | ELSE                |  rd    ||
+      %---------------------+--------++
+      ENDTABLE      
+
+% 写回值选择
+wb_src: TYPE = {aluout, load, pc4, lui}
+
+decode_wb_src(op: abs_opcode): wb_src =
+     TABLE
+     %---------------------+--------++
+     |  alu_r?(op)         | aluout ||
+     |  alu_shift?(op)     | aluout ||
+     |  alu_imm?(op)       | aluout ||
+     |  jal?(op)           | pc4    ||
+     |  lui?(op)           | lui    ||
+     |  load?(op)          | load   ||
+     |  ELSE               | pc4    ||
+     %---------------------+--------++
+     ENDTABLE
+
+decode_mem_access_width(op:abs_opcode)  : dmem_access_width =
+     TABLE
+     %------------------------------------------+-------++
+     | lb?(op) OR lbu?(op) OR sb?(op)           | w8    ||
+     | lh?(op) OR lhu?(op) OR sh?(op)           | w16   ||
+     | lw?(op) OR ll?(op) OR sw?(op) OR sc?(op) | w32   ||
+     | ELSE                                     | w32   ||
+     %------------------------------------------+-------++
+     ENDTABLE
+
+decode_load_se(op:abs_opcode): bool = lb?(op) OR lh?(op) 
+
+decode_check_overflow(op:abs_opcode): bool = add?(op) OR sub?(op) OR addi?(op)
+
+decoder_signal : TYPE = [# aluop: alu_op,
+                           sela:  sel_a,
+                           selb:  sel_b,
+                           seld:  sel_dest,
+                           wb?  : bool,
+                           wbsrc: wb_src,
+                           load?:  bool,
+                           loadse?: bool,
+                           store?: bool,
+                           mwidth:  dmem_access_width,
+                           checkov?: bool,
+                           beq?: bool,
+                           bne?: bool,
+                           jmp?: bool,
+                           jr?: bool,
+                           lui?: bool,
+                           invalid?: bool,
+                           atom?: bool
+                           #]
+
+decoder(op:abs_opcode) : decoder_signal = (#
+                            aluop := decode_alu_op(op),
+                            sela  := decode_sel_a(op),
+                            selb  := decode_sel_b(op),
+                            seld  := decode_sel_dest(op),
+                            wb?   := need_wb?(op),
+                            wbsrc := decode_wb_src(op),
+                            load?  := load?(op),
+                            loadse? := decode_load_se(op),
+                            store? := store?(op),
+                            mwidth := decode_mem_access_width(op),
+                            checkov? := decode_check_overflow(op),
+                            beq?  := beq?(op),
+                            bne?  := bne?(op),
+                            jmp?  := j?(op) OR jal?(op),
+                            jr?   := jr?(op),
+                            lui?  := lui?(op),
+                            invalid? := invalid?(op),
+                            atom? := sc?(op) OR ll?(op)
+                            #)
+
+END instruction_decoder
+
+
+
+decoder_props: THEORY
+BEGIN
+IMPORTING instruction_decoder
+
+op: VAR abs_opcode
+
+%|- decoder_* :PROOF
+%|- (then (skosimp) (flatten) (auto-rewrite-theory instruction_decoder :always? T) 
+%|-  (assert) (split-abs-opcode) )
+%|- QED
+
+decoder_load: LEMMA load?(decoder(op)`wbsrc) = decoder(op)`load?
+decoder_atom: LEMMA decoder(op)`atom? IMPLIES decoder(op)`mwidth = w32
+decoder_atom_2: LEMMA decoder(op)`atom? IMPLIES decoder(op)`load? OR decoder(op)`store?
+
+decoder_store_sela: LEMMA decoder(op)`store? IMPLIES decoder(op)`sela = rs
+decoder_store_selb: LEMMA decoder(op)`store? IMPLIES decoder(op)`selb = sext
+
+
+decoder_disjoint_1: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`load?
+decoder_disjoint_2: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`store?
+decoder_disjoint_3: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`beq?
+decoder_disjoint_4: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`bne?
+decoder_disjoint_5: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`checkov?
+decoder_disjoint_6: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`jmp?
+decoder_disjoint_7: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`jr?
+decoder_disjoint_8: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`lui?
+decoder_disjoint_9: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`wb?
+
+
+decoder_disjoint_12: LEMMA decoder(op)`load? IMPLIES NOT decoder(op)`store?
+decoder_disjoint_13: LEMMA decoder(op)`load? IMPLIES NOT decoder(op)`beq?
+decoder_disjoint_14: LEMMA decoder(op)`load? IMPLIES NOT decoder(op)`bne?
+decoder_disjoint_15: LEMMA decoder(op)`load? IMPLIES NOT decoder(op)`checkov?
+decoder_disjoint_16: LEMMA decoder(op)`load? IMPLIES NOT decoder(op)`jmp?
+decoder_disjoint_17: LEMMA decoder(op)`load? IMPLIES NOT decoder(op)`jr?
+decoder_disjoint_18: LEMMA decoder(op)`load? IMPLIES NOT decoder(op)`lui?
+decoder_disjoint_19: LEMMA  decoder(op)`load? IMPLIES decoder(op)`wb?
+
+decoder_disjoint_23: LEMMA decoder(op)`store? IMPLIES NOT decoder(op)`beq?
+decoder_disjoint_24: LEMMA decoder(op)`store? IMPLIES NOT decoder(op)`bne?
+decoder_disjoint_25: LEMMA decoder(op)`store? IMPLIES NOT decoder(op)`checkov?
+decoder_disjoint_26: LEMMA decoder(op)`store? IMPLIES NOT decoder(op)`jmp?
+decoder_disjoint_27: LEMMA decoder(op)`store? IMPLIES NOT decoder(op)`jr?
+decoder_disjoint_28: LEMMA decoder(op)`store? IMPLIES NOT decoder(op)`lui?
+decoder_disjoint_29: LEMMA decoder(op)`store? IMPLIES NOT decoder(op)`wb?
+
+decoder_disjoint_34: LEMMA decoder(op)`beq? IMPLIES NOT decoder(op)`bne?
+decoder_disjoint_35: LEMMA decoder(op)`beq? IMPLIES NOT decoder(op)`checkov?
+decoder_disjoint_36: LEMMA decoder(op)`beq? IMPLIES NOT decoder(op)`jmp?
+decoder_disjoint_37: LEMMA decoder(op)`beq? IMPLIES NOT decoder(op)`jr?
+decoder_disjoint_38: LEMMA decoder(op)`beq? IMPLIES NOT decoder(op)`lui?
+decoder_disjoint_39: LEMMA decoder(op)`beq? IMPLIES NOT decoder(op)`wb?
+
+
+decoder_disjoint_45: LEMMA decoder(op)`bne? IMPLIES NOT decoder(op)`checkov?
+decoder_disjoint_46: LEMMA decoder(op)`bne? IMPLIES NOT decoder(op)`jmp?
+decoder_disjoint_47: LEMMA decoder(op)`bne? IMPLIES NOT decoder(op)`jr?
+decoder_disjoint_48: LEMMA decoder(op)`bne? IMPLIES NOT decoder(op)`lui?
+decoder_disjoint_49: LEMMA decoder(op)`bne? IMPLIES NOT decoder(op)`wb?
+
+decoder_disjoint_56: LEMMA decoder(op)`checkov? IMPLIES NOT decoder(op)`jmp?
+decoder_disjoint_57: LEMMA decoder(op)`checkov? IMPLIES NOT decoder(op)`jr?
+decoder_disjoint_58: LEMMA decoder(op)`checkov? IMPLIES NOT decoder(op)`lui?
+decoder_disjoint_59: LEMMA decoder(op)`checkov? IMPLIES decoder(op)`wb?
+
+decoder_disjoint_67: LEMMA decoder(op)`jmp? IMPLIES NOT decoder(op)`jr?
+decoder_disjoint_68: LEMMA decoder(op)`jmp? IMPLIES NOT decoder(op)`lui?
+
+decoder_disjoint_78: LEMMA decoder(op)`jr? IMPLIES NOT decoder(op)`lui?
+decoder_disjoint_79: LEMMA decoder(op)`jr? IMPLIES NOT decoder(op)`wb?
+
+
+
+END decoder_props
+

@@ -1,0 +1,7 @@
+
+(defstep split-abs-opcode ()
+       (apply (then (use "abs_opcode_cover") (split -1) (assert) (lift-if) (bddsimp) (assert)))
+       "Doing Case-analysis for different opcode..."
+       "different opcode analysis")
+
+
