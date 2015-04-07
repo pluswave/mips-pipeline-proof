@@ -30,7 +30,7 @@ A_step(a: state_A): state_A =
       zext_v =  zero_extend[16](32) (short_immed_of (instr)),
       sext_v =  sign_extend[16](32) (short_immed_of (instr)),  
       upper_imm =  zero_extend_lsend[16](32) (short_immed_of(instr)),
-      % 指令扩展
+      % 立即数扩展
       src1 = 
           TABLE
            dec`sela
@@ -68,7 +68,8 @@ A_step(a: state_A): state_A =
       dmem_input_r = (# addr := alu_out_bv, mwidth := dec`mwidth, se := dec`loadse? #),
       dmem_input_w = (# addr := alu_out_bv, mwidth := dec`mwidth, value:= rt_val,  wen := dmem_wen #),      
       dmem_read_v = dmem_get_output( dmem_input_r, a`dmem ), 
-      % dmem读      
+      next_dmem = dmem_update(dmem_input_w, a`dmem),
+      % dmem读、写      
       wbval =  
            TABLE
           dec`wbsrc
@@ -90,7 +91,7 @@ A_step(a: state_A): state_A =
          ENDTABLE,
       rf_write = (# addr := dst, value := wbval, en:= valid_pc AND dec`wb? AND NOT exception_ov AND NOT exception_dmem_addr #),  
       next_rf = rf_update(rf_write, a`rf),
-      next_dmem = dmem_update(dmem_input_w, a`dmem),
+      % rf 写
       exception = NOT valid_pc OR exception_instr OR exception_ov OR exception_dmem_addr,
       npc = IF exception THEN exception_entry ELSE    
      TABLE
@@ -165,30 +166,32 @@ exceptionpc_prop:     THEOREM NOT imem_addr_pred(a`pc) IMPLIES action_exception(
 % case: instr exception
 exceptioninstr_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = invalid IMPLIES action_exception(a)
 
-% case: ADD and not overflow
+% case: instr = add and not overflow
 add_nooverflow_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = add AND NOT overflow(rs(a) , rt(a) ) 
      IMPLIES A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), rs(a) + rt(a)) ]
 
-% case: ADD and overflow
+% case: instr = add and overflow
 add_overflow_prop:   THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = add AND overflow(rs(a), rt(a)) IMPLIES action_exception(a)
 
 
-% case ADDU
+% case instr = addu
 addu_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = addu IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), rs(a) + rt(a)) ]
 
-% case lw AND exception
+% case instr = lw AND exception
 
 lw_exception_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = lw AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
 
 lw_noexception_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = lw AND dmem_addr_valid?(mem_addr_calcu(a)) IMPLIES
       A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), read32(a`dmem, mem_addr_calcu(a))) ]
 
-
+% case instr = sb
 sb_exception_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = sb AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
 
 sb_noexcption_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = sb AND dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES 
      A_step(a) =  a WITH [ pc := a`pc + 4, dmem := write8(a`dmem, mem_addr_calcu(a), rt(a)^(7,0) ) ]
+
+
 
 
 END specification_trans_props
