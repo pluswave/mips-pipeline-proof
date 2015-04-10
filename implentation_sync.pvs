@@ -1,0 +1,182 @@
+implementation_state_1_sync: THEORY
+BEGIN
+
+IMPORTING implementation_state_1
+
+q: VAR state_I
+
+% 译码信号
+
+% T_need = 0
+id_need_rs(q): bool = LET dec = impl_dec_id(q) IN q`id_s`state = normal AND (dec`beq? OR dec`bne? OR dec`jr? ) AND rs(q`id_s`instr) /= zero_reg
+
+id_need_rt(q): bool = LET dec = impl_dec_id(q) IN q`id_s`state = normal AND (dec`beq? OR dec`bne? ) AND rt(q`id_s`instr) /= zero_reg
+
+% T_need  = 1
+future_ex_need_rs(q): bool = LET dec=impl_dec_id(q) IN 
+                           q`id_s`state = normal AND rs(q`id_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND NOT dec`jr? AND dec`sela = rs 
+
+future_ex_need_rt(q): bool = LET dec=impl_dec_id(q) IN 
+                           q`id_s`state = normal AND rt(q`id_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND (dec`sela = rt OR ( dec`selb = rt AND NOT dec`store?) ) 
+                                    
+% T_need = 2
+future_mem_need_rt(q): bool = LET dec=impl_dec_id(q) IN 
+                           q`id_s`state = normal AND rs(q`id_s`instr) /= zero_reg AND dec`store? 
+
+get_ex_dst(q): bvec[5] = LET dec=impl_dec_ex(q), instr=q`ex_s`instr IN
+         TABLE
+          dec`seld
+          %--------+-----------++
+          | rd     | rd(instr) ||
+          | rt     | rt(instr) ||
+          | ra     | ra_reg    ||
+          %--------+-----------++
+         ENDTABLE
+
+get_mem_wb?(q): bool = q`mem_s`state = normal AND impl_dec_mem(q)`wb?
+
+get_wb_wb?(q):  bool = NOT q`wb_s`bubble AND impl_dec_wb(q)`wb?
+
+get_ex_wb?(q):  bool = q`ex_s`state = normal AND impl_dec_ex(q)`wb?
+
+get_mem_dst(q): bvec[5] = LET dec=impl_dec_mem(q), instr=q`mem_s`instr IN
+         TABLE
+          dec`seld
+          %--------+-----------++
+          | rd     | rd(instr) ||
+          | rt     | rt(instr) ||
+          | ra     | ra_reg    ||
+          %--------+-----------++
+         ENDTABLE
+
+
+get_wb_dst(q): bvec[5] = LET dec=impl_dec_wb(q), instr=q`wb_s`instr IN
+         TABLE
+          dec`seld
+          %--------+-----------++
+          | rd     | rd(instr) ||
+          | rt     | rt(instr) ||
+          | ra     | ra_reg    ||
+          %--------+-----------++
+         ENDTABLE
+
+
+% 结果是否产生
+% ex 阶段永远不产生结果
+% mem阶段可能有结果
+% wb阶段永远有结果
+current_mem_has_wb_val(q): bool = q`mem_s`state = normal AND NOT impl_dec_mem(q)`load?
+
+next_mem_has_wb_val(q): bool = q`ex_s`state = normal AND NOT impl_dec_ex(q)`load?
+
+
+% 匹配关系
+
+
+%% rs
+% id <-> ex 阶段永远不可能转发，
+rs_id_indep_ex(q): bool = LET dec = impl_dec_ex(q) IN 
+                        id_need_rs(q) IMPLIES 
+                             ( get_ex_wb?(q) IMPLIES rs(q`id_s`instr) /= get_ex_dst(q)) 
+
+% id <-> mem 阶段，可能转发，也可能不需要转发
+
+rs_id_indep_mem(q): bool = id_need_rs(q) IMPLIES 
+                               ( get_mem_wb?(q) IMPLIES rs(q`id_s`instr) /= get_mem_dst(q) )
+
+rs_id_fwd_match_mem(q): bool = id_need_rs(q) AND 
+                               ( get_mem_wb?(q) AND rs(q`id_s`instr) = get_mem_dst(q) AND current_mem_has_wb_val(q) )
+
+
+
+rs_ex_indep_mem(q): bool = LET dec=impl_dec_ex(q) IN 
+                             future_ex_need_rs(q) IMPLIES  
+                             ( get_mem_wb?(q) IMPLIES rs(q`id_s`instr) /=  get_ex_dst(q) )
+
+rs_ex_fwd_match_mem(q): bool = LET dec=impl_dec_ex(q) IN 
+                             future_ex_need_rs(q) AND 
+                              get_ex_wb?(q) AND rs(q`id_s`instr) =  get_ex_dst(q) AND  next_mem_has_wb_val(q)
+
+
+rs_may_fwd_match(q): bool = rs_id_indep_ex(q) AND ( rs_id_indep_mem(q) OR rs_id_fwd_match_mem(q)) AND (rs_ex_indep_mem(q) OR rs_ex_fwd_match_mem(q))
+
+
+% id <-> ex 阶段永远不可能转发，
+rt_id_indep_ex(q): bool = LET dec = impl_dec_ex(q) IN 
+                        id_need_rt(q) IMPLIES 
+                             ( get_ex_wb?(q) IMPLIES rt(q`id_s`instr) /= get_ex_dst(q)) 
+
+% id <-> mem 阶段，可能转发，也可能不需要转发
+
+rt_id_indep_mem(q): bool = id_need_rt(q) IMPLIES 
+                               (get_mem_wb?(q) IMPLIES rt(q`id_s`instr) /= get_mem_dst(q) )
+
+rt_id_fwd_match_mem(q): bool = id_need_rt(q) AND 
+                               (get_mem_wb?(q) AND rt(q`id_s`instr) = get_mem_dst(q) AND current_mem_has_wb_val(q) )
+
+
+
+rt_ex_indep_mem(q): bool = LET dec=impl_dec_ex(q) IN 
+                             future_ex_need_rt(q) IMPLIES  
+                             ( get_ex_wb?(q) IMPLIES rt(q`id_s`instr) /=  get_ex_dst(q) )
+
+rt_ex_fwd_match_mem(q): bool = LET dec=impl_dec_ex(q) IN 
+                             future_ex_need_rt(q) AND 
+                             get_ex_wb?(q) AND rt(q`id_s`instr) =  get_ex_dst(q) AND  next_mem_has_wb_val(q)
+
+
+% 由于wb阶段永远有结果，mem阶段的需求永远可以获得转发，其实可以省略?? 
+% lw $1, 4($2); sw $1, 8($2) ==> sw 到 mem阶段直接转发
+% lw $1, $2(4); addu $4, $6, $5; sw $1, $3(8) ==> sw 到 mem阶段无法从寄存器读，也无法转发，但可以在ex阶段转发！
+% lw $1, $2(4); addu $3, $4, $5; sw $3, 8($1) ==>  
+
+rt_may_fwd_match(q): bool = rt_id_indep_ex(q) AND ( rt_id_indep_mem(q) OR rt_id_fwd_match_mem(q)) AND (rt_ex_indep_mem(q) OR rt_ex_fwd_match_mem(q))
+
+
+
+% 暂停信号生成
+sync_stall_issue(q): bool = NOT ( rs_may_fwd_match(q) AND rt_may_fwd_match(q) )
+
+
+get_rf_output(q):  rf_output = LET dec=impl_dec_id(q),instr=q`id_s`instr,
+                      rs=rs(instr), rt=rt(instr) 
+                   IN rf_get_output( (# addr_1 := rs, addr_2 := rt #), q`a_s`rf )
+
+% 转发器信号
+
+
+
+
+mux_id_rs(q): bvec[32] = IF rs(q`id_s`instr) = zero_reg THEN zero
+              ELSIF q`mem_s`state = normal AND get_mem_wb?(q) AND rs(q`id_s`instr) = get_mem_dst(q)  THEN q`mem_s`aluout 
+              ELSIF get_wb_wb?(q) AND rs(q`id_s`instr) = get_wb_dst(q)  THEN q`wb_s`val
+              ELSE  get_rf_output(q)`val_1
+              ENDIF
+
+mux_id_rt(q): bvec[32] = IF rt(q`id_s`instr) = zero_reg THEN zero
+              ELSIF q`mem_s`state = normal AND get_mem_wb?(q) AND rt(q`id_s`instr) = get_mem_dst(q)  THEN q`mem_s`aluout 
+              ELSIF get_wb_wb?(q) AND rt(q`id_s`instr) = get_wb_dst(q)  THEN q`wb_s`val
+              ELSE  get_rf_output(q)`val_2
+              ENDIF
+
+% 
+mux_ex_rs(q): bvec[32] = 
+              IF    rs(q`ex_s`instr) /= zero_reg AND q`mem_s`state = normal AND get_mem_wb?(q) AND rs(q`ex_s`instr) = get_mem_dst(q) THEN q`mem_s`aluout
+              ELSIF rs(q`ex_s`instr) /= zero_reg AND get_wb_wb?(q) AND rs(q`ex_s`instr) = get_wb_dst(q) THEN q`wb_s`val
+              ELSE q`ex_s`rs
+              ENDIF
+
+mux_ex_rt(q): bvec[32] = 
+              IF    rt(q`ex_s`instr) /= zero_reg AND q`mem_s`state = normal AND get_mem_wb?(q) AND rt(q`ex_s`instr) = get_mem_dst(q) THEN q`mem_s`aluout
+              ELSIF rt(q`ex_s`instr) /= zero_reg AND get_wb_wb?(q) AND rt(q`ex_s`instr) = get_wb_dst(q) THEN q`wb_s`val
+              ELSE q`ex_s`rt
+              ENDIF
+
+mux_mem_rt(q): bvec[32] = 
+              IF  rt(q`mem_s`instr) /= zero_reg AND get_wb_wb?(q) AND rt(q`mem_s`instr) = get_wb_dst(q) THEN q`wb_s`val
+              ELSE q`mem_s`rt
+              ENDIF
+
+
+
+END implementation_state_1_sync

@@ -1,0 +1,77 @@
+implementation_state_1: THEORY
+BEGIN
+
+IMPORTING specification_state
+IMPORTING datapath
+%5级流水线模型
+
+
+stage_state : TYPE = { normal,    %包含一条指令 
+                       exception, %指令执行异常，尚未处理
+                       bubble    %无效指令 
+                     }
+
+state_if_id : TYPE = 
+            [#  state: stage_state,
+                instr:  instruction,
+                pc:     bvec[32]
+             #]
+            
+
+state_id_ex:  TYPE = 
+           [#  state: stage_state,
+               instr:  instruction,
+               pc:    bvec[32],
+               rs:    bvec[32],
+               rt:    bvec[32]
+           #]  
+
+state_ex_mem: TYPE = 
+           [# state: stage_state,
+              instr:   instruction,
+              pc: bvec[32],
+              aluout: bvec[32],  
+              rt: bvec[32]    
+            #]
+
+state_mem_wb:  TYPE = [# bubble: bool,  % 
+                         instr:  instruction,                     
+                         val: bvec[32] %
+                      #]
+                     
+state_I: TYPE = [# id_s:  state_if_id,
+                   ex_s:  state_id_ex,
+                   mem_s: state_ex_mem,
+                   wb_s:  state_mem_wb,
+                   a_s:   state_A
+                   #]
+
+inputs_type : TYPE+ = [# no_op? : bool #]
+
+
+q: VAR state_I
+
+Flushed?(q): bool = q`id_s`state = bubble AND q`ex_s`state = bubble AND q`mem_s`state = bubble AND q`wb_s`bubble
+
+Init?(q) : bool = Flushed?(q)
+
+% 投影函数,直接取出架构状态
+Projection(q): state_A = q`a_s
+
+
+
+% 虚拟译码器函数，方便使用
+IMPORTING instruction_decoder
+impl_dec_id(q): decoder_signal = decoder(get_abs_opcode(q`id_s`instr))
+
+impl_dec_ex(q): decoder_signal = decoder(get_abs_opcode(q`ex_s`instr))
+
+impl_dec_mem(q): decoder_signal = decoder(get_abs_opcode(q`mem_s`instr))
+
+impl_dec_wb(q):  decoder_signal = decoder(get_abs_opcode(q`wb_s`instr))
+
+
+
+END implementation_state_1
+
+

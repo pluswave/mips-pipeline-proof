@@ -1,0 +1,87 @@
+implementation_trans_1: THEORY
+BEGIN
+
+IMPORTING implementation_state_1_signal
+
+q: VAR state_I
+% 写回阶段
+
+i1t_next_rf(q): regfile = rf_update( i1s_rf_input_write(q), q`a_s`rf)
+
+% 访存阶段
+i1t_next_dmem(q): data_memory = dmem_update (i1s_dmem_input_write(q), q`a_s`dmem)
+
+
+i1t_next_mem_wb(q): state_mem_wb =
+     (# bubble := q`mem_s`state /= normal ,
+        val    := i1s_next_wb_val(q),
+        instr  := q`mem_s`instr #)
+
+i1t_next_llflag(q): bool = 
+     IF q`mem_s`state = exception THEN FALSE
+     ELSIF q`mem_s`state = normal THEN
+     LET dec=impl_dec_mem(q) IN
+      TABLE  
+      %-------------------------+--------------++
+      | dec`atom? AND dec`load? | TRUE         ||
+      | dec`atom? AND dec`store?| FALSE        ||
+      | ELSE                    | q`a_s`llflag ||
+      %-------------------------+--------------++
+      ENDTABLE
+    ELSE q`a_s`llflag ENDIF
+
+i1t_next_epc(q): bvec[32] =
+    IF q`mem_s`state = exception 
+    THEN q`mem_s`pc 
+    ELSE q`a_s`epc
+    ENDIF
+
+% 执行阶段
+i1t_next_ex_mem(q): state_ex_mem =
+    (# state := i1s_next_mem_state(q),
+       instr := q`ex_s`instr,
+       pc    := q`ex_s`pc,
+       rt    := mux_ex_rt(q),
+       aluout := i1s_next_aluout(q)`out
+     #)
+
+% 译码阶段
+i1t_next_id_ex(q) : state_id_ex =
+    (# state := i1s_next_ex_state(q),
+       instr := q`id_s`instr,
+       pc    := q`id_s`pc,
+       rs    := mux_id_rs(q),
+       rt    := mux_id_rt(q)
+    #)
+
+% 取指令阶段
+
+i1t_next_if_id(q): state_if_id =
+    (# state := i1s_next_id_state(q), 
+       instr := i1s_get_instr(q),
+       pc    := q`a_s`pc
+    #)
+
+
+i1t_next_ifu(q): ifu = 
+  ifu_update( (# npc := i1s_next_pc(q),
+                 npc_valid? := i1s_npc_valid(q)
+              #), i1s_ifu(q) )
+
+ 
+I_step(q): state_I = 
+  (# a_s := (# rf   := i1t_next_rf(q),
+               dmem := i1t_next_dmem(q),
+               llflag := i1t_next_llflag(q),
+               epc    := i1t_next_epc(q),
+               pc     := i1t_next_ifu(q)`pc,
+               imem   := i1t_next_ifu(q)`imem
+             #),
+     wb_s := i1t_next_mem_wb(q),
+     mem_s := i1t_next_ex_mem(q),
+     ex_s  := i1t_next_id_ex(q),
+     id_s  := i1t_next_if_id(q)
+  #)
+
+
+END implementation_trans_1
