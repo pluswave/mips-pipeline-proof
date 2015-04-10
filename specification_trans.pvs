@@ -102,7 +102,7 @@ A_step(a: state_A): state_A =
      | ELSE                      |  zero      ||
      ENDTABLE
      ENDIF,
-      npc_valid = ( valid_pc AND (dec`beq? OR dec`bne? OR dec`jmp? OR dec`jr? )) OR exception,
+      npc_valid = ( valid_pc AND ( (dec`beq? AND rs_eq_rt) OR (dec`bne? AND NOT rs_eq_rt) OR dec`jmp? OR dec`jr? )) OR exception,
       ifu_input = (# npc := npc, npc_valid? := npc_valid #),
       next_ifu = ifu_update( ifu_input, ifu ), 
       next_pc = next_ifu`pc,
@@ -149,7 +149,8 @@ mem_addr_calcu(a): bvec[32] = LET ins = instr(a) IN rs(a) + sign_extend[16](32)(
 action_exception(a) : bool = A_step(a) = a WITH [ pc := exception_entry, epc := a`pc, llflag := FALSE] 
 
 %|- *_prop :PROOF
-%|- (then (skosimp*) 
+%|- (then (skosimp*)
+%|-  (auto-rewrite! concat_bottom) (auto-rewrite! zero_extend) (auto-rewrite! shamt) 
 %|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
 %|-  (apply (then (decompose-equality +) 
 %|-  (auto-rewrite-theory specification_trans :always? T) 
@@ -178,6 +179,17 @@ add_overflow_prop:   THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) =
 addu_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = addu IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), rs(a) + rt(a)) ]
 
+% case: srl:
+srl_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = srl IMPLIES
+     A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), right_shift(shamt(instr(a)), rt(a))) ]
+
+
+% case: sll:
+sll_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = sll IMPLIES
+     A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), left_shift(shamt(instr(a)), rt(a))) ]
+
+
+
 % case instr = lw AND exception
 
 lw_exception_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = lw AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
@@ -191,6 +203,48 @@ sb_exception_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = s
 sb_noexcption_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = sb AND dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES 
      A_step(a) =  a WITH [ pc := a`pc + 4, dmem := write8(a`dmem, mem_addr_calcu(a), rt(a)^(7,0) ) ]
 
+
+% beq
+beq_jmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = beq AND rs(a) = rt(a) IMPLIES 
+     A_step(a) = a WITH [ pc := a`pc + 4 + sign_extend[16](32)(short_immed_of(instr(a))) ]
+
+beq_nojmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = beq AND rs(a) /= rt(a) IMPLIES 
+     A_step(a) = a WITH [ pc := a`pc + 4 ]
+
+% bne
+bne_jmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = bne AND rs(a) /= rt(a) IMPLIES 
+     A_step(a) = a WITH [ pc := a`pc + 4 + sign_extend[16](32)(short_immed_of(instr(a))) ]
+
+%|- bne_jmp_prop : PROOF
+%|- (then (skosimp*)
+%|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
+%|-  (apply (then (decompose-equality +)
+%|-          (auto-rewrite-theory specification_trans :always? T) (assert)
+%|-          (auto-rewrite-theory datapath :always? T)
+%|-          (auto-rewrite-theory instruction_decoder :always? T)
+%|-          (assert)))
+%|-  (decompose-equality 2))
+%|- QED
+
+bne_nojmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = bne AND rs(a) = rt(a) IMPLIES 
+     A_step(a) = a WITH [ pc := a`pc + 4 ]
+
+
+% lui
+lui_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = lui IMPLIES 
+     A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), zero_extend_lsend[16](32)(short_immed_of(instr(a)))) ]
+
+
+% j
+j_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = j IMPLIES 
+     A_step(a) = a WITH [ pc := (a`pc + 4) ^ (31, 28) o long_immed_of(instr(a)) o b00  ]
+
+% jal
+jal_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = jal IMPLIES 
+     A_step(a) = a WITH [
+      pc := (a`pc + 4) ^ (31, 28) o long_immed_of(instr(a)) o b00,
+      rf := assign_r(rf(a), ra_reg, pc(a) + 4 )
+       ]
 
 
 
@@ -215,7 +269,8 @@ IMPORTING specification
 %|-  (auto-rewrite-theory datapath :always? T)
 %|-  (auto-rewrite-theory instruction_decoder :always? T)
 %|-  (assert) 
-%|-  (split-abs-opcode) )
+%|-  (apply (then (split-abs-opcode)  
+%|-     (auto-rewrite! concat_bottom) (auto-rewrite! zero_extend) (auto-rewrite! shamt))))
 %|- QED
 
 
