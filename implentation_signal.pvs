@@ -3,20 +3,17 @@ BEGIN
 
 IMPORTING implementation_state_1_sync
 
-% 基于流水线状态的基本组合逻辑 前缀 i1s_ 表示本theory名称的简写
+% 基于流水线状态的基本组合逻辑
 q: VAR state_I
 
 i1s_ifu(q): ifu = (# pc := q`a_s`pc, imem := q`a_s`imem #)
 
-% 译码信号
 
 
 i1s_rf_input_write(q): rf_input_write =
   (# addr := impl_wb_dst(q),
      en   := NOT q`wb_s`bubble AND impl_dec_wb(q)`wb?,
      value := q`wb_s`val #)
-
-% TBD
 
 i1s_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_mem(q) IN
    (# addr := q`mem_s`aluout,
@@ -52,10 +49,10 @@ i1s_src1(q): bvec[32] =
    LET dec = impl_dec_ex(q) IN
          TABLE
    dec`sela
-   %--------+----------------++
+   %--------+---------------------++
    |  rs    |  syn1_mux_ex_rs(q)  ||
    |  rt    |  syn1_mux_ex_rt(q)  ||
-   %--------+----------------++
+   %--------+---------------------++
   ENDTABLE
 
 i1s_src2(q): bvec[32] = 
@@ -68,12 +65,12 @@ i1s_src2(q): bvec[32] =
   IN
  TABLE
   dec`selb
-  %--------%----------++
+  %--------+----------++
   |  rt    |  rt_v    ||
   |  shamt |  shamt_v ||
   |  zext  |  zext_v  ||
   |  sext  |  sext_v  ||
-  %--------%----------++
+  %--------+----------++
  ENDTABLE
 
 
@@ -81,11 +78,10 @@ i1s_next_aluout(q): alu_out =
              alu( i1s_src1(q), i1s_src2(q),impl_dec_ex(q)`aluop )
 
 i1s_ex_exception(q): bool = LET dec = impl_dec_ex(q) IN
-           q`ex_s`state = exception OR 
-         (  dec`checkov? AND i1s_next_aluout(q)`ov ) OR
-         ( q`ex_s`state = normal AND 
-           ( dec`load? OR dec`store? ) AND
-          NOT dmem_addr_valid?(i1s_next_aluout(q)`out) )
+           q`ex_s`state = exception OR ( q`ex_s`state = normal AND
+           (( dec`checkov? AND i1s_next_aluout(q)`ov ) OR
+            (( dec`load? OR dec`store? ) AND
+             NOT dmem_addr_valid?(i1s_next_aluout(q)`out))))
 
 
 i1s_next_mem_state(q): stage_state = 
