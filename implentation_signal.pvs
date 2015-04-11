@@ -9,12 +9,6 @@ q: VAR state_I
 i1s_ifu(q): ifu = (# pc := q`a_s`pc, imem := q`a_s`imem #)
 
 
-
-i1s_rf_input_write(q): rf_input_write =
-  (# addr := impl_wb_dst(q),
-     en   := NOT q`wb_s`bubble AND impl_dec_wb(q)`wb?,
-     value := q`wb_s`val #)
-
 i1s_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_mem(q) IN
    (# addr := q`mem_s`aluout,
       wen := q`mem_s`state = normal AND dec`store?
@@ -23,56 +17,9 @@ i1s_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_mem(q) IN
       mwidth := dec`mwidth  #)
 
 
-i1s_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_mem(q) IN
-   (# addr := q`mem_s`aluout, mwidth := dec`mwidth, se := dec`loadse? #)
+i1s_src1(q): bvec[32] = src1_mux( impl_dec_ex(q), syn1_mux_ex_rs(q), syn1_mux_ex_rt(q))
 
-
-i1s_dmem_read_val(q) : bvec[32] = dmem_get_output(i1s_dmem_input_read(q), q`a_s`dmem)
-
-i1s_next_wb_val(q): bvec[32] = 
-   LET dec=impl_dec_mem(q), 
-       instr=q`mem_s`instr,
-       upper_imm=zero_extend_lsend[16](32) (short_immed_of(instr)),
-       pc_4=q`mem_s`pc + 4
-        IN  TABLE
-          dec`wbsrc
-          %--------+---------------------%%
-          | aluout | q`mem_s`aluout      ||
-          | lui    | upper_imm           ||
-          | load   | i1s_dmem_read_val(q)||
-          | pc4    | pc_4                ||
-          %--------+---------------------%%          
-         ENDTABLE
-
-
-i1s_src1(q): bvec[32] = 
-   LET dec = impl_dec_ex(q) IN
-         TABLE
-   dec`sela
-   %--------+---------------------++
-   |  rs    |  syn1_mux_ex_rs(q)  ||
-   |  rt    |  syn1_mux_ex_rt(q)  ||
-   %--------+---------------------++
-  ENDTABLE
-
-i1s_src2(q): bvec[32] = 
-  LET dec = impl_dec_ex(q),
-      instr = q`ex_s`instr,
-      shamt_v = zero_extend[5](32)(shamtbv(instr)),
-      zext_v =  zero_extend[16](32) (short_immed_of (instr)),
-      sext_v =  sign_extend[16](32) (short_immed_of (instr)),
-      rt_v = syn1_mux_id_rt(q)  
-  IN
- TABLE
-  dec`selb
-  %--------+----------++
-  |  rt    |  rt_v    ||
-  |  shamt |  shamt_v ||
-  |  zext  |  zext_v  ||
-  |  sext  |  sext_v  ||
-  %--------+----------++
- ENDTABLE
-
+i1s_src2(q): bvec[32] = src2_mux( impl_dec_ex(q), syn1_mux_ex_rt(q), q`ex_s`instr )
 
 i1s_next_aluout(q): alu_out =
              alu( i1s_src1(q), i1s_src2(q),impl_dec_ex(q)`aluop )

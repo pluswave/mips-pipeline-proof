@@ -62,6 +62,7 @@ Projection(q): state_A = q`a_s
 
 % 方便使用
 IMPORTING instruction_decoder
+IMPORTING specification_muxers
 impl_dec_id(q): decoder_signal = decoder(get_abs_opcode(q`id_s`instr))
 
 impl_dec_ex(q): decoder_signal = decoder(get_abs_opcode(q`ex_s`instr))
@@ -70,19 +71,45 @@ impl_dec_mem(q): decoder_signal = decoder(get_abs_opcode(q`mem_s`instr))
 
 impl_dec_wb(q):  decoder_signal = decoder(get_abs_opcode(q`wb_s`instr))
 
-impl_wb_dst(q): bvec[5] = LET dec=impl_dec_wb(q), instr=q`wb_s`instr IN
-         TABLE
-          dec`seld
-          %--------+-----------++
-          | rd     | rd(instr) ||
-          | rt     | rt(instr) ||
-          | ra     | ra_reg    ||
-          %--------+-----------++
-         ENDTABLE
+
+impl_ex_dst(q): bvec[5] = dst_addr_mux(impl_dec_ex(q), q`ex_s`instr)
+
+impl_mem_dst(q): bvec[5] = dst_addr_mux(impl_dec_mem(q), q`mem_s`instr)
+
+impl_wb_dst(q): bvec[5] = dst_addr_mux(impl_dec_wb(q), q`wb_s`instr)
+
 
 impl_rf_output(q):  rf_output = LET dec=impl_dec_id(q),instr=q`id_s`instr,
                       rs=rs(instr), rt=rt(instr) 
                    IN rf_get_output( (# addr_1 := rs, addr_2 := rt #), q`a_s`rf )
+
+
+
+impl_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_mem(q) IN
+   (# addr := q`mem_s`aluout, mwidth := dec`mwidth, se := dec`loadse? #)
+
+impl_rf_input_write(q): rf_input_write =
+  (# addr := impl_wb_dst(q),
+     en   := NOT q`wb_s`bubble AND impl_dec_wb(q)`wb?,
+     value := q`wb_s`val #)
+
+impl_dmem_read_val(q) : bvec[32] = dmem_get_output(impl_dmem_input_read(q), q`a_s`dmem)
+
+
+impl_next_wb_val(q): bvec[32] = wb_val_mux(impl_dec_mem(q), q`mem_s`aluout, q`mem_s`pc + 4, impl_dmem_read_val(q), q`mem_s`instr)
+
+impl_next_llflag(q): bool = 
+     IF q`mem_s`state = exception THEN FALSE
+     ELSIF q`mem_s`state = normal THEN
+     LET dec=impl_dec_mem(q) IN
+      TABLE  
+      %-------------------------+--------------++
+      | dec`atom? AND dec`load? | TRUE         ||
+      | dec`atom? AND dec`store?| FALSE        ||
+      | ELSE                    | q`a_s`llflag ||
+      %-------------------------+--------------++
+      ENDTABLE
+    ELSE q`a_s`llflag ENDIF
 
 
 END implementation_state_1

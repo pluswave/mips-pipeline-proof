@@ -1,4 +1,69 @@
 %% single cycle cpu mode 
+
+
+specification_muxers: THEORY
+BEGIN
+
+IMPORTING datapath
+IMPORTING decoder_props
+
+rs_v: VAR bvec[32]
+rt_v: VAR bvec[32]
+dec:  VAR decoder_signal
+instr: VAR instruction
+
+src1_mux(dec,rs_v,rt_v ): bvec[32] = 
+      TABLE
+       dec`sela
+    %---------+---------++
+    |   rs    | rs_v    ||
+    %---------+---------++
+    |   rt    | rt_v    ||
+    %---------+---------++
+      ENDTABLE
+
+src2_mux(dec,rt_v,instr): bvec[32] =
+    LET     
+      shamt_v = zero_extend[5](32)( shamtbv(instr)),
+      zext_v =  zero_extend[16](32) (short_immed_of (instr)),
+      sext_v =  sign_extend[16](32) (short_immed_of (instr))  
+    IN TABLE
+     dec`selb
+     %--------%----------++
+     |  rt    |  rt_v    ||
+     |  shamt |  shamt_v ||
+     |  zext  |  zext_v  ||
+     |  sext  |  sext_v  ||
+     %--------%----------++
+     ENDTABLE
+ 
+dst_addr_mux(dec, instr): bvec[5] = 
+     TABLE
+     dec`seld
+     %--------+-----------++
+     | rd     | rd(instr) ||
+     | rt     | rt(instr) ||
+     | ra     | ra_reg    ||
+     %--------+-----------++
+     ENDTABLE
+
+wb_val_mux(dec:decoder_signal, alu_out:bvec[32], 
+           pc_4:bvec[32], loadv:bvec[32], instr): bvec[32] =
+     LET upper_imm =  zero_extend_lsend[16](32) (short_immed_of(instr))
+     IN TABLE
+         dec`wbsrc
+          %--------+----------------++
+          | aluout | alu_out        ||
+          | lui    | upper_imm      ||
+          | load   | loadv         ||
+          | pc4    | pc_4           ||
+          %--------+----------------++          
+         ENDTABLE
+ 
+
+END specification_muxers
+
+
 specification_trans: THEORY
 BEGIN
 
@@ -6,6 +71,7 @@ IMPORTING datapath
 %IMPORTING instruction_decoder
 IMPORTING decoder_props
 IMPORTING specification_state
+IMPORTING specification_muxers
 
 a: VAR state_A
 
@@ -26,29 +92,10 @@ A_step(a: state_A): state_A =
       % rf 读
       pc_4 = ifu`pc + 4,
       % pc + 4
-      shamt_v = zero_extend[5](32)( shamtbv(instr)),
-      zext_v =  zero_extend[16](32) (short_immed_of (instr)),
       sext_v =  sign_extend[16](32) (short_immed_of (instr)),  
-      upper_imm =  zero_extend_lsend[16](32) (short_immed_of(instr)),
       % 立即数扩展
-      src1 = 
-          TABLE
-           dec`sela
-           %--------+----------++
-           |  rs    |  rs_val  ||
-           |  rt    |  rt_val  ||
-           %--------+----------++
-          ENDTABLE,
-      src2 = 
-         TABLE
-          dec`selb
-          %--------%----------++
-          |  rt    |  rt_val  ||
-          |  shamt |  shamt_v ||
-          |  zext  |  zext_v  ||
-          |  sext  |  sext_v  ||
-          %--------%----------++
-         ENDTABLE,
+      src1 = src1_mux(dec, rs_val, rt_val),
+      src2 = src2_mux(dec, rt_val, instr),
       % 源操作数 mux
       rs_eq_rt = rs_val = rt_val,
       % 比较器
@@ -70,25 +117,8 @@ A_step(a: state_A): state_A =
       dmem_read_v = dmem_get_output( dmem_input_r, a`dmem ), 
       next_dmem = dmem_update(dmem_input_w, a`dmem),
       % dmem读、写      
-      wbval =  
-           TABLE
-          dec`wbsrc
-          %--------+-------------------%%
-          | aluout | alu_out_bv        ||
-          | lui    | upper_imm         ||
-          | load   | dmem_read_v       ||
-          | pc4    | pc_4              ||
-          %--------+-------------------%%          
-         ENDTABLE,
-      dst = 
-         TABLE
-          dec`seld
-          %--------+-----------++
-          | rd     | rd(instr) ||
-          | rt     | rt(instr) ||
-          | ra     | ra_reg    ||
-          %--------+-----------++
-         ENDTABLE,
+      wbval =  wb_val_mux(dec, alu_out_bv, pc_4, dmem_read_v, instr),
+      dst = dst_addr_mux(dec, instr),
       rf_write = (# addr := dst, value := wbval, en:= valid_pc AND dec`wb? AND NOT exception_ov AND NOT exception_dmem_addr #),  
       next_rf = rf_update(rf_write, a`rf),
       % rf 写
@@ -154,6 +184,7 @@ action_exception(a) : bool = A_step(a) = a WITH [ pc := exception_entry, epc := 
 %|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
 %|-  (apply (then (decompose-equality +) 
 %|-  (auto-rewrite-theory specification_trans :always? T) 
+%|-  (auto-rewrite-theory specification_muxers :always? T)
 %|-  (assert)
 %|-  (auto-rewrite-theory datapath :always? T)
 %|-  (auto-rewrite-theory instruction_decoder :always? T)
@@ -211,20 +242,23 @@ beq_jmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = beq AN
 beq_nojmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = beq AND rs(a) /= rt(a) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4 ]
 
+%|- bne_jmp_prop: PROOF
+%|- beq_nojmp_prop : PROOF
+%|- (then (skosimp*) (auto-rewrite! concat_bottom)
+%|-  (auto-rewrite! zero_extend) (auto-rewrite! shamt)
+%|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
+%|-  (apply (then (decompose-equality 2)
+%|-          (auto-rewrite-theory specification_trans :always? T)
+%|-          (auto-rewrite-theory specification_muxers :always? T) (assert)
+%|-          (auto-rewrite-theory datapath :always? T)
+%|-          (auto-rewrite-theory instruction_decoder :always? T)
+%|-          (assert))))
+%|- QED
+
 % bne
 bne_jmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = bne AND rs(a) /= rt(a) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4 + sign_extend[16](32)(short_immed_of(instr(a))) ]
 
-%|- bne_jmp_prop : PROOF
-%|- (then (skosimp*)
-%|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
-%|-  (apply (then (decompose-equality +)
-%|-          (auto-rewrite-theory specification_trans :always? T) (assert)
-%|-          (auto-rewrite-theory datapath :always? T)
-%|-          (auto-rewrite-theory instruction_decoder :always? T)
-%|-          (assert)))
-%|-  (decompose-equality 2))
-%|- QED
 
 bne_nojmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = bne AND rs(a) = rt(a) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4 ]

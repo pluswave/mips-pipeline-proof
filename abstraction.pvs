@@ -1,0 +1,63 @@
+abstraction: THEORY
+BEGIN
+
+IMPORTING implementation_state_1
+
+q: VAR state_I
+
+% 写回阶段
+
+action_MEM_WB(q): state_A = q`a_s WITH [ (rf) := rf_update( impl_rf_input_write(q), q`a_s`rf ) ]
+
+Complete_MEM_WB(q): state_I = q WITH [ (a_s) := action_MEM_WB(q) ]
+
+Complete_till_MEM_WB(q): state_I = Complete_MEM_WB(q)
+
+
+% 访存阶段 
+abs_mem_rf_input_write(q): rf_input_write = 
+  (# addr := impl_mem_dst(q), 
+       en := q`mem_s`state = normal AND impl_dec_mem(q)`wb?,
+       value := impl_next_wb_val(q) #)
+
+abs_mem_rt(q): bvec[32] = select_r(q`a_s`rf, rt(q`mem_s`instr) )
+
+abs_mem_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_mem(q) IN
+   (# addr := q`mem_s`aluout,
+      wen := q`mem_s`state = normal AND dec`store?
+            AND ( dec`atom? IMPLIES q`a_s`llflag ),
+      value :=  abs_mem_rt(q),
+      mwidth := dec`mwidth  #)
+
+action_EX_MEM(q): state_A = q`a_s WITH [ (rf)   := rf_update( abs_mem_rf_input_write(q), q`a_s`rf ),
+                                         (dmem) := dmem_update( abs_mem_dmem_input_write(q), q`a_s`dmem ),
+                                         (pc)   := IF q`mem_s`state = exception THEN exception_entry ELSE q`a_s`pc ENDIF ,
+                                         (epc)  := IF q`mem_s`state = exception THEN q`mem_s`pc ELSE q`a_s`epc ENDIF,
+                                         (llflag) := impl_next_llflag(q) ]
+
+Complete_EX_MEM(q): state_I = q WITH [ (a_s) := action_EX_MEM(q) ]
+
+Complete_till_EX_MEM(q): state_I = Complete_EX_MEM( Complete_till_MEM_WB(q) )
+
+Squashrest?_till_EX_MEM(q): bool = q`mem_s`state = exception
+
+% 执行阶段
+abs_ex_rs(q): bvec[32] = select_r(q`a_s`rf, rs(q`ex_s`instr) )
+
+abs_ex_rt(q): bvec[32] = select_r(q`a_s`rf, rt(q`ex_s`instr) )
+
+abs_ex_src1(q): bvec[32] = src1_mux( impl_dec_ex(q), abs_ex_rs(q), abs_ex_rt(q) )
+
+abs_ex_src2(q): bvec[32] = src2_mux( impl_dec_ex(q), abs_ex_rt(q), q`ex_s`instr )
+
+abs_ex_aluout(q): alu_out = alu(  abs_ex_src1(q), abs_ex_src2(q), impl_dec_ex(q)`aluop )
+
+abs_ex_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_mem(q) IN
+   (# addr := q`mem_s`aluout, mwidth := dec`mwidth, se := dec`loadse? #)
+
+
+%abs_rf_ex_wb_val: bvec[32] = 
+
+
+
+END abstraction
