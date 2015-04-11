@@ -41,7 +41,7 @@ i1t_next_ex_mem(q): state_ex_mem =
     (# state := i1s_next_mem_state(q),
        instr := q`ex_s`instr,
        pc    := q`ex_s`pc,
-       rt    := mux_ex_rt(q),
+       rt    := syn1_mux_ex_rt(q),
        aluout := i1s_next_aluout(q)`out
      #)
 
@@ -50,8 +50,8 @@ i1t_next_id_ex(q) : state_id_ex =
     (# state := i1s_next_ex_state(q),
        instr := q`id_s`instr,
        pc    := q`id_s`pc,
-       rs    := mux_id_rs(q),
-       rt    := mux_id_rt(q)
+       rs    := syn1_mux_id_rs(q),
+       rt    := syn1_mux_id_rt(q)
     #)
 
 % 取指令阶段

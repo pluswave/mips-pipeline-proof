@@ -10,20 +10,9 @@ i1s_ifu(q): ifu = (# pc := q`a_s`pc, imem := q`a_s`imem #)
 
 % 译码信号
 
-i1s_wb_addr(q): bvec[5] = 
-       LET dec=impl_dec_wb(q), instr=q`wb_s`instr IN
-          TABLE
-          dec`seld
-          %--------+-----------++
-          | rd     | rd(instr) ||
-          | rt     | rt(instr) ||
-          | ra     | ra_reg    ||
-          %--------+-----------++
-         ENDTABLE
-
 
 i1s_rf_input_write(q): rf_input_write =
-  (# addr := i1s_wb_addr(q),
+  (# addr := impl_wb_dst(q),
      en   := NOT q`wb_s`bubble AND impl_dec_wb(q)`wb?,
      value := q`wb_s`val #)
 
@@ -33,7 +22,7 @@ i1s_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_mem(q) IN
    (# addr := q`mem_s`aluout,
       wen := q`mem_s`state = normal AND dec`store?
             AND ( dec`atom? IMPLIES q`a_s`llflag ),
-      value :=  mux_mem_rt(q),
+      value :=  syn1_mux_mem_rt(q),
       mwidth := dec`mwidth  #)
 
 
@@ -64,8 +53,8 @@ i1s_src1(q): bvec[32] =
          TABLE
    dec`sela
    %--------+----------------++
-   |  rs    |  mux_ex_rs(q)  ||
-   |  rt    |  mux_ex_rt(q)  ||
+   |  rs    |  syn1_mux_ex_rs(q)  ||
+   |  rt    |  syn1_mux_ex_rt(q)  ||
    %--------+----------------++
   ENDTABLE
 
@@ -75,7 +64,7 @@ i1s_src2(q): bvec[32] =
       shamt_v = zero_extend[5](32)(shamtbv(instr)),
       zext_v =  zero_extend[16](32) (short_immed_of (instr)),
       sext_v =  sign_extend[16](32) (short_immed_of (instr)),
-      rt_v = mux_id_rt(q)  
+      rt_v = syn1_mux_id_rt(q)  
   IN
  TABLE
   dec`selb
@@ -102,16 +91,12 @@ i1s_ex_exception(q): bool = LET dec = impl_dec_ex(q) IN
 i1s_next_mem_state(q): stage_state = 
         IF i1s_ex_exception(q) THEN exception ELSE q`ex_s`state ENDIF
 
-%TBD
-
-
-i1s_stall(q): bool 
 
 i1s_branch_addr(q): bvec[32] = q`id_s`pc + 4 + sign_extend[16](32) (short_immed_of (q`id_s`instr))  
 
 i1s_jmp_addr(q): bvec[32] = (q`id_s`pc + 4)^(31,28) o long_immed_of(q`id_s`instr) o b00
 
-i1s_rs_eq_rt(q): bool = mux_id_rs(q) = mux_id_rt(q)
+i1s_rs_eq_rt(q): bool = syn1_mux_id_rs(q) = syn1_mux_id_rt(q)
 
 
 i1s_id_branch_taken(q): bool = LET dec = impl_dec_id(q) IN
@@ -121,12 +106,12 @@ i1s_id_branch_taken(q): bool = LET dec = impl_dec_id(q) IN
 i1s_next_pc(q): bvec[32]
             = LET dec = impl_dec_id(q) IN
               IF   q`mem_s`state = exception THEN exception_entry 
-              ELSIF q`id_s`state = normal AND NOT i1s_stall(q) THEN
+              ELSIF q`id_s`state = normal AND NOT syn1_stall_issue(q) THEN
                 TABLE
              %------------------------+--------------------++
              | i1s_id_branch_taken(q) | i1s_branch_addr(q) ||
              | dec`jmp?               | i1s_jmp_addr(q)    ||
-             | dec`jr?                | mux_id_rs(q)   ||
+             | dec`jr?                | syn1_mux_id_rs(q)  ||
              | ELSE                   | zero               ||
              %------------------------+--------------------++
                 ENDTABLE
@@ -134,13 +119,13 @@ i1s_next_pc(q): bvec[32]
 
 i1s_npc_valid(q): bool = LET dec = impl_dec_id(q) IN 
              q`mem_s`state = exception  OR 
-             ( q`id_s`state = normal AND NOT i1s_stall(q) AND
+             ( q`id_s`state = normal AND NOT syn1_stall_issue(q) AND
                ( i1s_id_branch_taken(q) OR
                  dec`jmp? OR dec`jr? ) )
 
 i1s_next_ex_state(q): stage_state = LET dec=impl_dec_id(q) IN
              IF dec`invalid?   THEN exception
-             ELSIF i1s_stall(q) THEN bubble 
+             ELSIF syn1_stall_issue(q) THEN bubble 
              ELSE q`id_s`state ENDIF
 
 

@@ -60,7 +60,7 @@ Projection(q): state_A = q`a_s
 
 
 
-% 虚拟译码器函数，方便使用
+% 方便使用
 IMPORTING instruction_decoder
 impl_dec_id(q): decoder_signal = decoder(get_abs_opcode(q`id_s`instr))
 
@@ -70,6 +70,19 @@ impl_dec_mem(q): decoder_signal = decoder(get_abs_opcode(q`mem_s`instr))
 
 impl_dec_wb(q):  decoder_signal = decoder(get_abs_opcode(q`wb_s`instr))
 
+impl_wb_dst(q): bvec[5] = LET dec=impl_dec_wb(q), instr=q`wb_s`instr IN
+         TABLE
+          dec`seld
+          %--------+-----------++
+          | rd     | rd(instr) ||
+          | rt     | rt(instr) ||
+          | ra     | ra_reg    ||
+          %--------+-----------++
+         ENDTABLE
+
+impl_rf_output(q):  rf_output = LET dec=impl_dec_id(q),instr=q`id_s`instr,
+                      rs=rs(instr), rt=rt(instr) 
+                   IN rf_get_output( (# addr_1 := rs, addr_2 := rt #), q`a_s`rf )
 
 
 END implementation_state_1
