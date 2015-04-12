@@ -46,7 +46,6 @@ state_I: TYPE = [# id_s:  state_if_id,
                    a_s:   state_A
                    #]
 
-inputs_type : TYPE+ = [# no_op? : bool #]
 
 
 q: VAR state_I

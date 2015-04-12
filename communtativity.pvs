@@ -1,0 +1,13 @@
+commutativity: THEORY
+BEGIN
+
+IMPORTING abstraction_rewrites
+IMPORTING specification_trans
+
+
+
+
+
+
+
+END commutativity

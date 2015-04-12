@@ -1,0 +1,52 @@
+implementation_invariants: THEORY
+BEGIN
+
+
+IMPORTING implementation_trans_1
+IMPORTING abstraction_rewrites
+
+q: VAR state_I
+
+
+inv_ex_need_rs(q): bool = LET dec=impl_dec_ex(q) IN 
+                           q`ex_s`state = normal AND rs(q`ex_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND NOT dec`jr? AND dec`sela = rs 
+
+inv_ex_need_rt(q): bool = LET dec=impl_dec_ex(q) IN 
+                           q`ex_s`state = normal AND rt(q`ex_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND (dec`sela = rt OR  dec`selb = rt ) 
+                                  
+inv_mem_need_rt(q): bool = LET dec=impl_dec_mem(q) IN 
+                           q`mem_s`state = normal AND rs(q`mem_s`instr) /= zero_reg AND dec`store? 
+
+inv_mux_id_rs?(q): bool = syn1_id_need_rs(q) AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rs(q) = abs_id_rs(Complete_till_ID_EX(q))
+
+inv_mux_id_rt?(q): bool = syn1_id_need_rt(q) AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rt(q) = abs_id_rt(Complete_till_ID_EX(q))
+
+inv_mux_ex_rs?(q): bool = inv_ex_need_rs(q)  IMPLIES syn1_mux_ex_rs(q) = abs_ex_rs(Complete_till_EX_MEM(q))
+
+inv_mux_ex_rt?(q): bool = inv_ex_need_rt(q)  IMPLIES syn1_mux_ex_rt(q) = abs_ex_rt(Complete_till_EX_MEM(q))
+
+inv_mux_mem_rt?(q): bool = inv_mem_need_rt(q) IMPLIES syn1_mux_mem_rt(q) = abs_mem_rt(Complete_till_MEM_WB(q))
+
+inv_all?(q): bool = inv_mux_id_rs?(q) AND inv_mux_id_rt?(q) AND inv_mux_ex_rs?(q) AND inv_mux_ex_rt?(q) AND inv_mux_mem_rt?(q)
+
+Inv_mux_id_rs: LEMMA Init?(q) IMPLIES inv_mux_id_rs?(q)
+Inv_mux_id_rt: LEMMA Init?(q) IMPLIES inv_mux_id_rt?(q)
+Inv_mux_ex_rs: LEMMA Init?(q) IMPLIES inv_mux_ex_rs?(q)
+Inv_mux_ex_rt: LEMMA Init?(q) IMPLIES inv_mux_ex_rt?(q)
+Inv_mux_mem_rt: LEMMA Init?(q) IMPLIES inv_mux_mem_rt?(q)
+
+%|- Inv_mux_* : PROOF
+%|- (then (skosimp)
+%|-  (auto-rewrite-theory implementation_invariants :always? T)
+%|-  (auto-rewrite-theory abstraction_rewrites :always? T)
+%|-  (auto-rewrite-theory implementation_state_1 :always? T)
+%|-  (auto-rewrite-theory implementation_state_1_sync :always? T) (assert)
+%|-  (abs-defs) (assert) (flatten) (assert))
+%|- QED
+
+
+Inv_Init: THEOREM Init?(q) IMPLIES inv_all?(q)
+
+
+
+END implementation_invariants

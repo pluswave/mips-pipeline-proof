@@ -39,7 +39,19 @@ Rewrite_Complete_till_IF_ID_wb_s: LEMMA Complete_till_IF_ID(q)`wb_s = q`wb_s
 Rewrite_Complete_till_MEM_WB_bubble: LEMMA q`wb_s`bubble IMPLIES Complete_till_MEM_WB(q)`a_s = q`a_s
 Rewrite_Complete_till_EX_MEM_bubble: LEMMA q`mem_s`state = bubble IMPLIES Complete_till_EX_MEM(q)`a_s = Complete_till_MEM_WB(q)`a_s
 
+%|- Rewrite_Complete_till_MEM_WB_bubble[MEM_WB] : PROOF
+%|- Rewrite_Complete_till_EX_MEM_bubble[EX_MEM] : PROOF
+%|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites)
+%|-  (abs-defs) (expand Complete_till_#1) (assert))
+%|-  (auto-rewrite! rf_update) (auto-rewrite! dmem_update)
+%|-  (auto-rewrite-theory implementation_state_1 :always? T)
+%|-  (apply (decompose-equality 1) 
+%|-  (assert)))
+%|- QED
+
+
 Rewrite_Complete_till_ID_EX_bubble: LEMMA q`ex_s`state = bubble IMPLIES Complete_till_ID_EX(q)`a_s = Complete_till_EX_MEM(q)`a_s
+Rewrite_Complete_till_IF_ID_bubble: LEMMA q`id_s`state = bubble IMPLIES Complete_till_IF_ID(q)`a_s = Complete_till_ID_EX(q)`a_s
 
 %|- Rewrite_Complete_till_ID_EX_bubble[ID_EX] : PROOF
 %|- Rewrite_Complete_till_IF_ID_bubble[IF_ID] : PROOF
@@ -57,20 +69,13 @@ Rewrite_Complete_till_ID_EX_bubble: LEMMA q`ex_s`state = bubble IMPLIES Complete
 
 
 
-Rewrite_Complete_till_IF_ID_bubble: LEMMA q`id_s`state = bubble IMPLIES Complete_till_IF_ID(q)`a_s = Complete_till_ID_EX(q)`a_s
+projection: THEOREM Flushed?(q) IMPLIES ABS(q) = Projection(q)
 
-%|- Rewrite_Complete_till_*_bubble : PROOF
-%|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites)
-%|-  (expand Complete_till_$1) (expand Complete_$1)
-%|-  (expand action_$1) (assert)
-%|-  (abs-defs) (assert))
-%|-  (auto-rewrite! rf_update) (auto-rewrite! dmem_update)
-%|-  (auto-rewrite-theory implementation_state_1 :always? T)
-%|-  (apply (decompose-equality 1) 
-%|-  (assert)))
+%|- projection : PROOF
+%|- (then (skosimp) (abs-defs) (auto-rewrite-theory abstraction_rewrites)
+%|-  (auto-rewrite-theory implementation_state_1 :always? T) (assert)
+%|-  (flatten) (assert))
 %|- QED
-
-
 
 
 
