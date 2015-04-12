@@ -5,3 +5,12 @@
        "different opcode analysis")
 
 
+(defstep abs-defs ()
+	 (then
+	 (auto-rewrite-theory "abstraction" :always? t)
+	 (stop-rewrite "Complete_till_MEM_WB" "Complete_till_EX_MEM" 
+		       "Complete_till_ID_EX" "Complete_till_IF_ID" 
+		       "Squash_rest?_till_EX_MEM" "Squash_rest?_till_ID_EX" "Squash_rest?_till_IF_ID" ))
+         "Most definitions from abstraction theory installed as rewrites"
+	 "Installing rewrite rules from abstraction  definitions")
+

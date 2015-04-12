@@ -29,17 +29,20 @@ abs_mem_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_mem(q) IN
       value :=  abs_mem_rt(q),
       mwidth := dec`mwidth  #)
 
-action_EX_MEM(q): state_A = q`a_s WITH [ (rf)   := rf_update( abs_mem_rf_input_write(q), q`a_s`rf ),
-                                         (dmem) := dmem_update( abs_mem_dmem_input_write(q), q`a_s`dmem ),
-                                         (pc)   := IF q`mem_s`state = exception THEN exception_entry ELSE q`a_s`pc ENDIF ,
-                                         (epc)  := IF q`mem_s`state = exception THEN q`mem_s`pc ELSE q`a_s`epc ENDIF,
-                                         (llflag) := impl_next_llflag(q) ]
+action_EX_MEM(q): state_A = q`a_s WITH 
+  [ (rf)   := rf_update( abs_mem_rf_input_write(q), q`a_s`rf ),
+  (dmem) := dmem_update( abs_mem_dmem_input_write(q), q`a_s`dmem ),
+  (pc)   := IF q`mem_s`state = exception THEN exception_entry ELSE q`a_s`pc ENDIF ,
+  (epc)  := IF q`mem_s`state = exception THEN q`mem_s`pc ELSE q`a_s`epc ENDIF,
+  (llflag) := impl_next_llflag(q) ]
 
 Complete_EX_MEM(q): state_I = q WITH [ (a_s) := action_EX_MEM(q) ]
 
 Complete_till_EX_MEM(q): state_I = Complete_EX_MEM( Complete_till_MEM_WB(q) )
 
-Squashrest?_till_EX_MEM(q): bool = q`mem_s`state = exception
+Squashrest?_EX_MEM(q): bool = q`mem_s`state = exception
+
+Squashrest?_till_EX_MEM(q): bool = Squashrest?_EX_MEM( Complete_till_MEM_WB(q) )
 
 % 执行阶段
 abs_ex_rs(q): bvec[32] = select_r(q`a_s`rf, rs(q`ex_s`instr) )
@@ -52,12 +55,142 @@ abs_ex_src2(q): bvec[32] = src2_mux( impl_dec_ex(q), abs_ex_rt(q), q`ex_s`instr 
 
 abs_ex_aluout(q): alu_out = alu(  abs_ex_src1(q), abs_ex_src2(q), impl_dec_ex(q)`aluop )
 
-abs_ex_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_mem(q) IN
-   (# addr := q`mem_s`aluout, mwidth := dec`mwidth, se := dec`loadse? #)
+abs_ex_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_ex(q) IN
+   (# addr := abs_ex_aluout(q)`out, mwidth := dec`mwidth, se := dec`loadse? #)
 
+abs_ex_dmem_load_val(q): bvec[32] = dmem_get_output( abs_ex_dmem_input_read(q), q`a_s`dmem)
 
-%abs_rf_ex_wb_val: bvec[32] = 
+abs_ex_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_ex(q) IN
+   (# addr := abs_ex_aluout(q)`out, mwidth := dec`mwidth,
+      wen := q`ex_s`state = normal AND dec`store? 
+             AND (dec`atom? IMPLIES q`a_s`llflag ),
+      value := abs_ex_rt(q) #)
 
+abs_ex_rf_wb_val(q): bvec[32] = 
+     wb_val_mux( impl_dec_ex(q), abs_ex_aluout(q)`out, 
+                 q`ex_s`pc + 4,  abs_ex_dmem_load_val(q),
+                 q`ex_s`instr )
 
+abs_ex_rf_input_write(q): rf_input_write = 
+   LET dec=impl_dec_ex(q) IN
+   (# addr := impl_ex_dst(q), value := abs_ex_rf_wb_val(q),
+      en := q`ex_s`state = normal AND dec`wb? AND
+          ( dec`checkov? IMPLIES NOT abs_ex_aluout(q)`ov )
+      AND ( dec`load? IMPLIES 
+        dmem_addr_valid?(abs_ex_aluout(q)`out) ) #)
+
+abs_ex_exception(q) : bool = LET dec = impl_dec_ex(q) IN
+   q`ex_s`state = exception OR (q`ex_s`state = normal AND 
+    (dec`checkov? IMPLIES NOT abs_ex_aluout(q)`ov ) AND
+    (dec`load? OR dec`store? IMPLIES 
+      dmem_addr_valid?(abs_ex_aluout(q)`out)))
+
+Squashrest?_ID_EX(q): bool = abs_ex_exception(q)
+
+Squashrest?_till_ID_EX(q): bool = Squashrest?_till_EX_MEM(q) 
+     OR Squashrest?_ID_EX( Complete_till_EX_MEM(q) )
+
+action_ID_EX(q): state_A = q`a_s WITH 
+ [(rf) := rf_update(abs_ex_rf_input_write(q), q`a_s`rf),
+  (dmem) := dmem_update(abs_ex_dmem_input_write(q),q`a_s`dmem),                    
+  (pc) := IF abs_ex_exception(q) THEN exception_entry ELSE q`a_s`pc ENDIF,
+  (epc) := IF abs_ex_exception(q) THEN q`ex_s`pc ELSE q`a_s`epc ENDIF,
+  (llflag) := IF abs_ex_exception(q) THEN FALSE 
+       ELSIF q`ex_s`state = normal THEN
+         LET dec = impl_dec_ex(q) IN 
+           TABLE  
+      %-------------------------+-------------%%
+      | dec`atom? AND dec`load? | TRUE        ||
+      | dec`atom? AND dec`store?| FALSE       ||
+      | ELSE                    | q`a_s`llflag||
+      %-------------------------+-------------%%
+      ENDTABLE
+       ELSE q`a_s`llflag
+       ENDIF 
+      ]
+
+Complete_ID_EX(q): state_I = IF Squashrest?_till_EX_MEM(q) THEN q
+      ELSE q WITH [ (a_s) := action_ID_EX(q) ] ENDIF
+
+Complete_till_ID_EX(q): state_I = Complete_ID_EX(Complete_till_EX_MEM(q))
+
+% 译码阶段
+
+abs_id_rs(q): bvec[32] = select_r(q`a_s`rf, rs(q`id_s`instr) )
+
+abs_id_rt(q): bvec[32] = select_r(q`a_s`rf, rt(q`id_s`instr) )
+
+abs_id_src1(q): bvec[32] = src1_mux( impl_dec_id(q), abs_id_rs(q), abs_id_rt(q) )
+
+abs_id_src2(q): bvec[32] = src2_mux( impl_dec_id(q), abs_id_rt(q), q`id_s`instr )
+
+abs_id_aluout(q): alu_out = alu(  abs_id_src1(q), abs_id_src2(q), impl_dec_id(q)`aluop )
+
+abs_id_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_id(q) IN
+   (# addr := abs_id_aluout(q)`out, mwidth := dec`mwidth, se := dec`loadse? #)
+
+abs_id_dmem_load_val(q): bvec[32] = dmem_get_output( abs_id_dmem_input_read(q), q`a_s`dmem)
+
+abs_id_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_id(q) IN
+   (# addr := abs_id_aluout(q)`out, mwidth := dec`mwidth,
+      wen := q`id_s`state = normal AND dec`store? 
+             AND (dec`atom? IMPLIES q`a_s`llflag ),
+      value := abs_id_rt(q) #)
+
+abs_id_rf_wb_val(q): bvec[32] = 
+     wb_val_mux( impl_dec_id(q), abs_id_aluout(q)`out, 
+                 q`id_s`pc + 4,  abs_id_dmem_load_val(q),
+                 q`id_s`instr )
+
+abs_id_rf_input_write(q): rf_input_write = 
+   LET dec=impl_dec_id(q) IN
+   (# addr := impl_id_dst(q), value := abs_id_rf_wb_val(q),
+      en := q`id_s`state = normal AND dec`wb? AND
+          ( dec`checkov? IMPLIES NOT abs_id_aluout(q)`ov )
+      AND ( dec`load? IMPLIES 
+        dmem_addr_valid?(abs_id_aluout(q)`out) ) #)
+
+abs_id_exception(q) : bool = LET dec = impl_dec_id(q) IN
+   q`id_s`state = exception OR (q`id_s`state = normal AND 
+    (dec`checkov? IMPLIES NOT abs_id_aluout(q)`ov ) AND
+    (dec`load? OR dec`store? IMPLIES 
+      dmem_addr_valid?(abs_id_aluout(q)`out)))
+
+abs_id_branch_taken(q): bool = LET dec=impl_dec_id(q) IN
+    q`id_s`state = normal AND
+    ( ( dec`beq? AND abs_id_rs(q) = abs_id_rt(q) ) 
+    OR( dec`bne? AND abs_id_rs(q) /= abs_id_rt(q) ) )
+
+Squashrest?_IF_ID(q): bool = abs_id_exception(q) OR ( abs_id_branch_taken(q) )
+
+Squashrest?_till_IF_ID(q): bool = Squashrest?_till_ID_EX(q) OR 
+    Squashrest?_IF_ID(Complete_till_ID_EX(q) ) 
+
+action_IF_ID(q): state_A = q`a_s WITH 
+ [(rf) := rf_update(abs_id_rf_input_write(q), q`a_s`rf),
+  (dmem) := dmem_update(abs_id_dmem_input_write(q),q`a_s`dmem),                    
+  (pc) := IF abs_id_exception(q) THEN exception_entry ELSE q`a_s`pc ENDIF,
+  (epc) := IF abs_id_exception(q) THEN q`id_s`pc ELSE q`a_s`epc ENDIF,
+  (llflag) := IF abs_id_exception(q) THEN FALSE 
+         ELSIF q`id_s`state = normal THEN
+         LET dec = impl_dec_id(q) IN 
+           TABLE  
+      %-------------------------+-------------%%
+      | dec`atom? AND dec`load? | TRUE        ||
+      | dec`atom? AND dec`store?| FALSE       ||
+      | ELSE                    | q`a_s`llflag||
+      %-------------------------+-------------%%
+      ENDTABLE
+         ELSE q`a_s`llflag  
+      ENDIF ]
+
+Complete_IF_ID(q): state_I = IF Squashrest?_till_ID_EX(q) THEN q 
+     ELSE q WITH [ (a_s) := action_IF_ID(q) ] ENDIF
+
+Complete_till_IF_ID(q): state_I = Complete_IF_ID( Complete_till_ID_EX(q) )
+
+ABS(q) : state_A = Projection( Complete_till_IF_ID(q) )        
 
 END abstraction
+
+

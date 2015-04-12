@@ -72,6 +72,8 @@ impl_dec_mem(q): decoder_signal = decoder(get_abs_opcode(q`mem_s`instr))
 impl_dec_wb(q):  decoder_signal = decoder(get_abs_opcode(q`wb_s`instr))
 
 
+impl_id_dst(q): bvec[5] = dst_addr_mux(impl_dec_id(q), q`id_s`instr)
+
 impl_ex_dst(q): bvec[5] = dst_addr_mux(impl_dec_ex(q), q`ex_s`instr)
 
 impl_mem_dst(q): bvec[5] = dst_addr_mux(impl_dec_mem(q), q`mem_s`instr)

@@ -1,0 +1,81 @@
+abstraction_rewrites: THEORY
+BEGIN
+
+IMPORTING abstraction
+
+q: VAR state_I
+% 完成函数不改变非架构状态
+Rewrite_Complete_till_MEM_WB_id_s: LEMMA Complete_till_MEM_WB(q)`id_s = q`id_s
+Rewrite_Complete_till_MEM_WB_ex_s: LEMMA Complete_till_MEM_WB(q)`ex_s = q`ex_s
+Rewrite_Complete_till_MEM_WB_mem_s: LEMMA Complete_till_MEM_WB(q)`mem_s = q`mem_s
+Rewrite_Complete_till_MEM_WB_wb_s: LEMMA Complete_till_MEM_WB(q)`wb_s = q`wb_s
+
+Rewrite_Complete_till_EX_MEM_id_s: LEMMA Complete_till_EX_MEM(q)`id_s = q`id_s
+Rewrite_Complete_till_EX_MEM_ex_s: LEMMA Complete_till_EX_MEM(q)`ex_s = q`ex_s
+Rewrite_Complete_till_EX_MEM_mem_s: LEMMA Complete_till_EX_MEM(q)`mem_s = q`mem_s
+Rewrite_Complete_till_EX_MEM_wb_s: LEMMA Complete_till_EX_MEM(q)`wb_s = q`wb_s
+
+Rewrite_Complete_till_ID_EX_id_s: LEMMA Complete_till_ID_EX(q)`id_s = q`id_s
+Rewrite_Complete_till_ID_EX_ex_s: LEMMA Complete_till_ID_EX(q)`ex_s = q`ex_s
+Rewrite_Complete_till_ID_EX_mem_s: LEMMA Complete_till_ID_EX(q)`mem_s = q`mem_s
+Rewrite_Complete_till_ID_EX_wb_s: LEMMA Complete_till_ID_EX(q)`wb_s = q`wb_s
+
+Rewrite_Complete_till_IF_ID_id_s: LEMMA Complete_till_IF_ID(q)`id_s = q`id_s
+Rewrite_Complete_till_IF_ID_ex_s: LEMMA Complete_till_IF_ID(q)`ex_s = q`ex_s
+Rewrite_Complete_till_IF_ID_mem_s: LEMMA Complete_till_IF_ID(q)`mem_s = q`mem_s
+Rewrite_Complete_till_IF_ID_wb_s: LEMMA Complete_till_IF_ID(q)`wb_s = q`wb_s
+
+%|- Rewrite_Complete_till_*_id_s : PROOF
+%|- Rewrite_Complete_till_*_ex_s : PROOF
+%|- Rewrite_Complete_till_*_mem_s : PROOF
+%|- Rewrite_Complete_till_*_wb_s : PROOF
+%|- (then (skosimp)
+%|-  (auto-rewrite-theory abstraction_rewrites)
+%|-  (expand Complete_till_$1) (expand Complete_$1) (expand action_$1) (assert))
+%|- QED
+
+
+% bubble指令情况下，相关的完成函数不改变架构状态
+Rewrite_Complete_till_MEM_WB_bubble: LEMMA q`wb_s`bubble IMPLIES Complete_till_MEM_WB(q)`a_s = q`a_s
+Rewrite_Complete_till_EX_MEM_bubble: LEMMA q`mem_s`state = bubble IMPLIES Complete_till_EX_MEM(q)`a_s = Complete_till_MEM_WB(q)`a_s
+
+Rewrite_Complete_till_ID_EX_bubble: LEMMA q`ex_s`state = bubble IMPLIES Complete_till_ID_EX(q)`a_s = Complete_till_EX_MEM(q)`a_s
+
+%|- Rewrite_Complete_till_ID_EX_bubble[ID_EX] : PROOF
+%|- Rewrite_Complete_till_IF_ID_bubble[IF_ID] : PROOF
+%|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites)
+%|-  (expand Complete_till_#1) (expand Complete_#1) (assert)
+%|-  (lift-if)
+%|-  (spread (split 1)
+%|-   ((propax)
+%|-    (then (flatten) (expand action_#1)
+%|-     (auto-rewrite-theory implementation_state_1 :always? T) (assert)
+%|-     (abs-defs) (auto-rewrite! dmem_update) (auto-rewrite! rf_update)
+%|-     (hide 1) (apply (decompose-equality 1) (then assert))))))
+%|- QED
+
+
+
+
+Rewrite_Complete_till_IF_ID_bubble: LEMMA q`id_s`state = bubble IMPLIES Complete_till_IF_ID(q)`a_s = Complete_till_ID_EX(q)`a_s
+
+%|- Rewrite_Complete_till_*_bubble : PROOF
+%|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites)
+%|-  (expand Complete_till_$1) (expand Complete_$1)
+%|-  (expand action_$1) (assert)
+%|-  (abs-defs) (assert))
+%|-  (auto-rewrite! rf_update) (auto-rewrite! dmem_update)
+%|-  (auto-rewrite-theory implementation_state_1 :always? T)
+%|-  (apply (decompose-equality 1) 
+%|-  (assert)))
+%|- QED
+
+
+
+
+
+
+
+
+
+END abstraction_rewrites
