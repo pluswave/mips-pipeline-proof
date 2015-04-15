@@ -26,10 +26,18 @@ Rewrite_pc_mem: LEMMA (I_step(q))`mem_s`pc = q`ex_s`pc
 %|- (then (skosimp) (auto-rewrite-theory implementation_rewrites_1) (impl-defs) (assert) (expand I_step) (assert))
 %|- QED
 
-Rewrite_sync_ex_rs: LEMMA syn1_ex_need_rs(I_step(q)) IMPLIES syn1_future_ex_need_rs(q)
-Rewrite_sync_ex_rt: LEMMA syn1_ex_need_rt(I_step(q)) IMPLIES syn1_future_ex_need_rt(q)
+Rewrite_sync_ex_rs_1: LEMMA syn1_ex_need_rs(I_step(q)) IMPLIES syn1_future_ex_need_rs(q)
+Rewrite_sync_ex_rt_1: LEMMA syn1_ex_need_rt(I_step(q)) IMPLIES syn1_future_ex_need_rt(q)
+Rewrite_sync_ex_rs_2: LEMMA syn1_ex_need_rs(I_step(q)) IMPLIES NOT syn1_stall_issue(q)
+Rewrite_sync_ex_rt_2: LEMMA syn1_ex_need_rt(I_step(q)) IMPLIES NOT syn1_stall_issue(q)
 
-%|- Rewrite_sync_ex_* : PROOF
+
+Rewrite_sync_wb_wb: LEMMA syn1_get_wb_wb?(I_step(q)) IMPLIES syn1_get_mem_wb?(q)
+
+Rewrite_sync_mem_wb: LEMMA syn1_get_mem_wb?(I_step(q)) IMPLIES syn1_get_ex_wb?(q)
+
+
+%|- Rewrite_sync_* : PROOF
 %|- (then (skosimp) (auto-rewrite-theory implementation_rewrites_1)
 %|-  (impl-defs) (assert) (expand I_step) (assert) (flatten) (assert)
 %|-  (case-analysis))
