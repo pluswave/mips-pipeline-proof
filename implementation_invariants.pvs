@@ -10,19 +10,20 @@ q: VAR state_I
 
 
 
-Reachable?_mem_rt(q: state_I): bool = syn1_mem_need_rt(q) AND ( NOT syn1_get_wb_wb?(q) OR rt(q`mem_s`instr) /= impl_wb_dst(q) )  IMPLIES select_r(q`a_s`rf, rt(q`mem_s`instr)) = q`mem_s`rt
+Reachable?_mem_rt(q: state_I): bool = syn1_mem_need_rt(q) AND  NOT syn1_dep_wb_dst(q)(rt(q`mem_s`instr))  IMPLIES select_r(q`a_s`rf, rt(q`mem_s`instr)) = q`mem_s`rt
 
-Reachable?_ex_rs(q: state_I): bool = syn1_ex_need_rs(q) AND ( NOT syn1_get_mem_wb?(q) OR rs(q`ex_s`instr) /= impl_mem_dst(q)  ) AND ( NOT syn1_get_wb_wb?(q) OR rs(q`ex_s`instr) /= impl_wb_dst(q) ) IMPLIES select_r(q`a_s`rf, rs(q`ex_s`instr)) = q`ex_s`rs
+Reachable?_ex_rs(q: state_I): bool = syn1_ex_need_rs(q) AND  NOT syn1_dep_mem_dst(q)(rs(q`ex_s`instr))  AND NOT syn1_dep_wb_dst(q)(rs(q`ex_s`instr)) IMPLIES select_r(q`a_s`rf, rs(q`ex_s`instr)) = q`ex_s`rs
 
-Reachable?_ex_rt(q: state_I): bool = syn1_ex_need_rt(q) AND ( NOT syn1_get_mem_wb?(q) OR rt(q`ex_s`instr) /= impl_mem_dst(q)  ) AND ( NOT syn1_get_wb_wb?(q) OR rt(q`ex_s`instr) /= impl_wb_dst(q) ) IMPLIES select_r(q`a_s`rf, rt(q`ex_s`instr)) = q`ex_s`rt
+Reachable?_ex_rt(q: state_I): bool = syn1_ex_need_rt(q) AND  NOT syn1_dep_mem_dst(q)(rt(q`ex_s`instr))  AND NOT syn1_dep_wb_dst(q)(rt(q`ex_s`instr)) IMPLIES select_r(q`a_s`rf, rt(q`ex_s`instr)) = q`ex_s`rt
 
-Reachable?_id_ex_rs(q: state_I): bool = syn1_id_need_rs(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_get_ex_wb?(q) OR rs(q`id_s`instr) /= impl_ex_dst(q) 
 
-Reachable?_id_ex_rt(q: state_I): bool = syn1_id_need_rt(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_get_ex_wb?(q) OR rt(q`id_s`instr) /= impl_ex_dst(q) 
+Reachable?_id_ex_rs(q: state_I): bool = syn1_id_need_rs(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_dep_ex_dst(q)(rs(q`id_s`instr))
 
-Reachable?_id_mem_rs(q: state_I): bool = syn1_id_need_rs(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_get_mem_wb?(q) OR rs(q`id_s`instr) /= impl_mem_dst(q) OR syn1_current_mem_has_wb_val(q)
+Reachable?_id_ex_rt(q: state_I): bool = syn1_id_need_rt(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_dep_ex_dst(q)(rt(q`id_s`instr))
 
-Reachable?_id_mem_rt(q: state_I): bool = syn1_id_need_rt(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_get_mem_wb?(q) OR rt(q`id_s`instr) /= impl_mem_dst(q) OR syn1_current_mem_has_wb_val(q)
+Reachable?_id_mem_rs(q: state_I): bool = syn1_id_need_rs(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_dep_mem_dst(q)(rs(q`id_s`instr)) OR syn1_current_mem_has_wb_val(q)
+
+Reachable?_id_mem_rt(q: state_I): bool = syn1_id_need_rt(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_dep_mem_dst(q)(rt(q`id_s`instr)) OR syn1_current_mem_has_wb_val(q)
 
 Reachable?(q) : bool = Reachable?_mem_rt(q) AND Reachable?_ex_rs(q) AND Reachable?_ex_rt(q) AND Reachable?_id_ex_rs(q) AND Reachable?_id_ex_rt(q) AND Reachable?_id_mem_rs(q) AND Reachable?_id_mem_rt(q)
 

@@ -6,20 +6,20 @@ IMPORTING implementation_state_1
 q: VAR state_I
 
 % T_need = 0
-syn1_id_need_rs(q): bool = LET dec = impl_dec_id(q) IN q`id_s`state = normal AND (dec`beq? OR dec`bne? OR dec`jr? ) AND rs(q`id_s`instr) /= zero_reg
+syn1_id_need_rs(q): bool = LET dec = impl_dec_id(q) IN q`id_s`state = normal AND (dec`beq? OR dec`bne? OR dec`jr? ) 
 
-syn1_id_need_rt(q): bool = LET dec = impl_dec_id(q) IN q`id_s`state = normal AND (dec`beq? OR dec`bne? ) AND rt(q`id_s`instr) /= zero_reg
+syn1_id_need_rt(q): bool = LET dec = impl_dec_id(q) IN q`id_s`state = normal AND (dec`beq? OR dec`bne? ) 
 
 % T_need  = 1
 syn1_future_ex_need_rs(q): bool = LET dec=impl_dec_id(q) IN 
-                           q`id_s`state = normal AND rs(q`id_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND NOT dec`jr? AND dec`sela = rs 
+                           q`id_s`state = normal AND NOT dec`beq? AND NOT dec`bne? AND NOT dec`jr? AND dec`sela = rs 
 
 syn1_future_ex_need_rt(q): bool = LET dec=impl_dec_id(q) IN 
-                           q`id_s`state = normal AND rt(q`id_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND (dec`sela = rt OR  dec`selb = rt ) 
+                           q`id_s`state = normal AND NOT dec`beq? AND NOT dec`bne? AND (dec`sela = rt OR  dec`selb = rt ) 
                                     
 % T_need = 2
 syn1_future_mem_need_rt(q): bool = LET dec=impl_dec_id(q) IN 
-                           q`id_s`state = normal AND rs(q`id_s`instr) /= zero_reg AND dec`store? 
+                           q`id_s`state = normal AND dec`store? 
 
 
 % 当前状态需求模型
@@ -42,7 +42,6 @@ syn1_get_wb_wb?(q):  bool = NOT q`wb_s`bubble AND impl_dec_wb(q)`wb?
 
 
 
-
 % 结果是否产生
 % ex 阶段永远不产生结果
 % mem阶段可能有结果
@@ -54,39 +53,28 @@ syn1_next_mem_has_wb_val(q): bool = NOT impl_dec_ex(q)`load?
 
 % 匹配关系
 
+% 辅助函数
+
+syn1_dep_ex_dst(q)(addr: bvec[5]):  bool = addr /= zero_reg AND syn1_get_ex_wb?(q)  AND addr = impl_ex_dst(q)
+syn1_dep_mem_dst(q)(addr: bvec[5]): bool = addr /= zero_reg AND syn1_get_mem_wb?(q) AND addr = impl_mem_dst(q)
+syn1_dep_wb_dst(q)(addr: bvec[5]):  bool = addr /= zero_reg AND syn1_get_wb_wb?(q)  AND addr = impl_wb_dst(q)
 
 %% rs
 % id <-> ex 阶段永远不可能转发，
-syn1_rs_id_indep_ex(q): bool = 
-  rs(q`id_s`instr) /= impl_ex_dst(q) 
-
 syn1_rs_id_ex_no_stall(q): bool = 
-  syn1_id_need_rs(q) AND syn1_get_ex_wb?(q)
-  IMPLIES syn1_rs_id_indep_ex(q) 
+  syn1_id_need_rs(q) 
+  IMPLIES NOT syn1_dep_ex_dst(q)(rs(q`id_s`instr))
 
 % id <-> mem 阶段，可能转发，也可能不需要转发
-syn1_rs_id_indep_mem(q): bool = 
- rs(q`id_s`instr) /= impl_mem_dst(q) 
-
-syn1_rs_id_fwd_match_mem(q): bool = 
- rs(q`id_s`instr) = impl_mem_dst(q) 
- AND syn1_current_mem_has_wb_val(q) 
-
 syn1_rs_id_mem_no_stall(q): bool = 
- syn1_id_need_rs(q) AND syn1_get_mem_wb?(q)
- IMPLIES syn1_rs_id_indep_mem(q) OR syn1_rs_id_fwd_match_mem(q)
+ syn1_id_need_rs(q) AND syn1_dep_mem_dst(q)(rs(q`id_s`instr))
+ IMPLIES syn1_current_mem_has_wb_val(q)
 
 % ex <--> mem 阶段，可能转发，也可能不转发
-syn1_rs_ex_indep_mem(q): bool = 
- rs(q`id_s`instr) /=  impl_ex_dst(q) 
-
-syn1_rs_ex_fwd_match_mem(q): bool = 
- rs(q`id_s`instr) =  impl_ex_dst(q) 
- AND  syn1_next_mem_has_wb_val(q)
 
 syn1_rs_ex_mem_no_stall(q): bool = 
- syn1_future_ex_need_rs(q) AND syn1_get_ex_wb?(q) 
- IMPLIES syn1_rs_ex_indep_mem(q) OR syn1_rs_ex_fwd_match_mem(q)
+ syn1_future_ex_need_rs(q) AND syn1_dep_ex_dst(q)(rs(q`id_s`instr))
+ IMPLIES syn1_next_mem_has_wb_val(q)
 
 % rs 无需暂停的条件
 syn1_rs_no_stall(q): bool = 
@@ -98,36 +86,22 @@ syn1_rs_no_stall(q): bool =
 
 %% rt
 % id <-> ex 阶段永远不可能转发，
-syn1_rt_id_indep_ex(q): bool = 
- rt(q`id_s`instr) /= impl_ex_dst(q) 
-
 syn1_rt_id_ex_no_stall(q): bool = 
- syn1_id_need_rt(q) AND syn1_get_ex_wb?(q)
- IMPLIES syn1_rt_id_indep_ex(q) 
+  syn1_id_need_rt(q) 
+  IMPLIES NOT syn1_dep_ex_dst(q)(rt(q`id_s`instr))
+
 % id <-> mem 阶段，可能转发，也可能不需要转发
-
-syn1_rt_id_indep_mem(q): bool = 
- rt(q`id_s`instr) /= impl_mem_dst(q) 
-
-syn1_rt_id_fwd_match_mem(q): bool = 
- rt(q`id_s`instr) = impl_mem_dst(q) 
- AND syn1_current_mem_has_wb_val(q) 
-
 syn1_rt_id_mem_no_stall(q): bool = 
- syn1_id_need_rt(q) AND syn1_get_mem_wb?(q)
- IMPLIES syn1_rt_id_indep_mem(q) OR syn1_rt_id_fwd_match_mem(q)
+ syn1_id_need_rt(q) AND syn1_dep_mem_dst(q)(rt(q`id_s`instr))
+ IMPLIES syn1_current_mem_has_wb_val(q)
 
 % ex <--> mem 阶段，可能转发，也可能不转发
-syn1_rt_ex_indep_mem(q): bool = 
- rt(q`id_s`instr) /=  impl_ex_dst(q) 
-
-syn1_rt_ex_fwd_match_mem(q): bool = 
- rt(q`id_s`instr) =  impl_ex_dst(q) 
- AND  syn1_next_mem_has_wb_val(q)
 
 syn1_rt_ex_mem_no_stall(q): bool = 
- syn1_future_ex_need_rt(q) AND syn1_get_ex_wb?(q) 
- IMPLIES syn1_rt_ex_indep_mem(q) OR syn1_rt_ex_fwd_match_mem(q)
+ syn1_future_ex_need_rt(q) AND syn1_dep_ex_dst(q)(rt(q`id_s`instr))
+ IMPLIES syn1_next_mem_has_wb_val(q)
+
+
 
 % mem <--> wb 阶段，已经正常转发或者可以转发，无需写条件
 % rt无需暂停的条件
@@ -153,33 +127,34 @@ syn1_stall_issue(q): bool = NOT ( syn1_rs_no_stall(q) AND syn1_rt_no_stall(q) )
 
 
 
-syn1_mux_id_rs(q): bvec[32] = IF rs(q`id_s`instr) = zero_reg THEN zero
-              ELSIF syn1_get_mem_wb?(q) AND rs(q`id_s`instr) = impl_mem_dst(q)  THEN q`mem_s`aluout 
-              ELSIF syn1_get_wb_wb?(q) AND rs(q`id_s`instr) = impl_wb_dst(q)  THEN q`wb_s`val
+syn1_mux_id_rs(q): bvec[32] = LET raddr = rs(q`id_s`instr) IN
+              IF syn1_dep_mem_dst(q)(raddr)  THEN q`mem_s`aluout 
+              ELSIF syn1_dep_wb_dst(q)(raddr)  THEN q`wb_s`val
               ELSE  impl_rf_output(q)`val_1
               ENDIF
 
-syn1_mux_id_rt(q): bvec[32] = IF rt(q`id_s`instr) = zero_reg THEN zero
-              ELSIF syn1_get_mem_wb?(q) AND rt(q`id_s`instr) = impl_mem_dst(q)  THEN q`mem_s`aluout 
-              ELSIF syn1_get_wb_wb?(q) AND rt(q`id_s`instr) = impl_wb_dst(q)  THEN q`wb_s`val
-              ELSE  impl_rf_output(q)`val_2
+
+syn1_mux_id_rt(q): bvec[32] = LET raddr = rt(q`id_s`instr) IN
+              IF syn1_dep_mem_dst(q)(raddr)  THEN q`mem_s`aluout 
+              ELSIF syn1_dep_wb_dst(q)(raddr)  THEN q`wb_s`val
+              ELSE  impl_rf_output(q)`val_1
               ENDIF
 
 % 
-syn1_mux_ex_rs(q): bvec[32] = 
-              IF    rs(q`ex_s`instr) /= zero_reg AND syn1_get_mem_wb?(q) AND rs(q`ex_s`instr) = impl_mem_dst(q) THEN q`mem_s`aluout
-              ELSIF rs(q`ex_s`instr) /= zero_reg AND syn1_get_wb_wb?(q) AND rs(q`ex_s`instr) = impl_wb_dst(q) THEN q`wb_s`val
+syn1_mux_ex_rs(q): bvec[32] = LET raddr = rs(q`ex_s`instr) IN
+              IF    syn1_dep_mem_dst(q)(raddr) THEN q`mem_s`aluout
+              ELSIF syn1_dep_wb_dst(q)(raddr) THEN q`wb_s`val
               ELSE q`ex_s`rs
               ENDIF
 
-syn1_mux_ex_rt(q): bvec[32] = 
-              IF    rt(q`ex_s`instr) /= zero_reg AND syn1_get_mem_wb?(q) AND rt(q`ex_s`instr) = impl_mem_dst(q) THEN q`mem_s`aluout
-              ELSIF rt(q`ex_s`instr) /= zero_reg AND syn1_get_wb_wb?(q) AND rt(q`ex_s`instr) = impl_wb_dst(q) THEN q`wb_s`val
+syn1_mux_ex_rt(q): bvec[32] = LET raddr = rt(q`ex_s`instr) IN
+              IF    syn1_dep_mem_dst(q)(raddr) THEN q`mem_s`aluout
+              ELSIF syn1_dep_wb_dst(q)(raddr) THEN q`wb_s`val
               ELSE q`ex_s`rt
               ENDIF
 
-syn1_mux_mem_rt(q): bvec[32] = 
-              IF  rt(q`mem_s`instr) /= zero_reg AND syn1_get_wb_wb?(q) AND rt(q`mem_s`instr) = impl_wb_dst(q) THEN q`wb_s`val
+syn1_mux_mem_rt(q): bvec[32] = LET raddr = rt(q`mem_s`instr) IN
+              IF  syn1_dep_wb_dst(q)(raddr) THEN q`wb_s`val
               ELSE q`mem_s`rt
               ENDIF
 
