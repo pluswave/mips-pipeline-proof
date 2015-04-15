@@ -13,11 +13,12 @@ Complete_MEM_WB(q): state_I = q WITH [ (a_s) := action_MEM_WB(q) ]
 
 Complete_till_MEM_WB(q): state_I = Complete_MEM_WB(q)
 
+abs_mem_rf_wen(q) : bool = q`mem_s`state = normal AND impl_dec_mem(q)`wb?
 
 % 访存阶段 
 abs_mem_rf_input_write(q): rf_input_write = 
   (# addr := impl_mem_dst(q), 
-       en := q`mem_s`state = normal AND impl_dec_mem(q)`wb?,
+       en := abs_mem_rf_wen(q),
        value := impl_next_wb_val(q) #)
 
 abs_mem_rt(q): bvec[32] = select_r(q`a_s`rf, rt(q`mem_s`instr) )
@@ -40,9 +41,9 @@ Complete_EX_MEM(q): state_I = q WITH [ (a_s) := action_EX_MEM(q) ]
 
 Complete_till_EX_MEM(q): state_I = Complete_EX_MEM( Complete_till_MEM_WB(q) )
 
-Squashrest?_EX_MEM(q): bool = q`mem_s`state = exception
+Squash_rest?_EX_MEM(q): bool = q`mem_s`state = exception
 
-Squashrest?_till_EX_MEM(q): bool = Squashrest?_EX_MEM( Complete_till_MEM_WB(q) )
+Squash_rest?_till_EX_MEM(q): bool = Squash_rest?_EX_MEM( Complete_till_MEM_WB(q) )
 
 % 执行阶段
 abs_ex_rs(q): bvec[32] = select_r(q`a_s`rf, rs(q`ex_s`instr) )
@@ -85,10 +86,10 @@ abs_ex_exception(q) : bool = LET dec = impl_dec_ex(q) IN
     (dec`load? OR dec`store? IMPLIES 
       dmem_addr_valid?(abs_ex_aluout(q)`out)))
 
-Squashrest?_ID_EX(q): bool = abs_ex_exception(q)
+Squash_rest?_ID_EX(q): bool = abs_ex_exception(q)
 
-Squashrest?_till_ID_EX(q): bool = Squashrest?_till_EX_MEM(q) 
-     OR Squashrest?_ID_EX( Complete_till_EX_MEM(q) )
+Squash_rest?_till_ID_EX(q): bool = Squash_rest?_till_EX_MEM(q) 
+     OR Squash_rest?_ID_EX( Complete_till_EX_MEM(q) )
 
 action_ID_EX(q): state_A = q`a_s WITH 
  [(rf) := rf_update(abs_ex_rf_input_write(q), q`a_s`rf),
@@ -109,7 +110,7 @@ action_ID_EX(q): state_A = q`a_s WITH
        ENDIF 
       ]
 
-Complete_ID_EX(q): state_I = IF Squashrest?_till_EX_MEM(q) THEN q
+Complete_ID_EX(q): state_I = IF Squash_rest?_till_EX_MEM(q) THEN q
       ELSE q WITH [ (a_s) := action_ID_EX(q) ] ENDIF
 
 Complete_till_ID_EX(q): state_I = Complete_ID_EX(Complete_till_EX_MEM(q))
@@ -161,10 +162,10 @@ abs_id_branch_taken(q): bool = LET dec=impl_dec_id(q) IN
     ( ( dec`beq? AND abs_id_rs(q) = abs_id_rt(q) ) 
     OR( dec`bne? AND abs_id_rs(q) /= abs_id_rt(q) ) )
 
-Squashrest?_IF_ID(q): bool = abs_id_exception(q) OR ( abs_id_branch_taken(q) )
+Squash_rest?_IF_ID(q): bool = abs_id_exception(q) OR ( abs_id_branch_taken(q) )
 
-Squashrest?_till_IF_ID(q): bool = Squashrest?_till_ID_EX(q) OR 
-    Squashrest?_IF_ID(Complete_till_ID_EX(q) ) 
+Squash_rest?_till_IF_ID(q): bool = Squash_rest?_till_ID_EX(q) OR 
+    Squash_rest?_IF_ID(Complete_till_ID_EX(q) ) 
 
 action_IF_ID(q): state_A = q`a_s WITH 
  [(rf) := rf_update(abs_id_rf_input_write(q), q`a_s`rf),
@@ -184,7 +185,7 @@ action_IF_ID(q): state_A = q`a_s WITH
          ELSE q`a_s`llflag  
       ENDIF ]
 
-Complete_IF_ID(q): state_I = IF Squashrest?_till_ID_EX(q) THEN q 
+Complete_IF_ID(q): state_I = IF Squash_rest?_till_ID_EX(q) THEN q 
      ELSE q WITH [ (a_s) := action_IF_ID(q) ] ENDIF
 
 Complete_till_IF_ID(q): state_I = Complete_IF_ID( Complete_till_ID_EX(q) )

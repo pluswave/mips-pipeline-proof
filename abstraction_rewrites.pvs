@@ -4,31 +4,39 @@ BEGIN
 IMPORTING abstraction
 
 q: VAR state_I
-% 完成函数不改变非架构状态
+% 完成函数不改变非架构状态以及imem
 Rewrite_Complete_till_MEM_WB_id_s: LEMMA Complete_till_MEM_WB(q)`id_s = q`id_s
 Rewrite_Complete_till_MEM_WB_ex_s: LEMMA Complete_till_MEM_WB(q)`ex_s = q`ex_s
 Rewrite_Complete_till_MEM_WB_mem_s: LEMMA Complete_till_MEM_WB(q)`mem_s = q`mem_s
 Rewrite_Complete_till_MEM_WB_wb_s: LEMMA Complete_till_MEM_WB(q)`wb_s = q`wb_s
+Rewrite_Complete_till_MEM_WB_imem: LEMMA Complete_till_MEM_WB(q)`a_s`imem = q`a_s`imem
+
 
 Rewrite_Complete_till_EX_MEM_id_s: LEMMA Complete_till_EX_MEM(q)`id_s = q`id_s
 Rewrite_Complete_till_EX_MEM_ex_s: LEMMA Complete_till_EX_MEM(q)`ex_s = q`ex_s
 Rewrite_Complete_till_EX_MEM_mem_s: LEMMA Complete_till_EX_MEM(q)`mem_s = q`mem_s
 Rewrite_Complete_till_EX_MEM_wb_s: LEMMA Complete_till_EX_MEM(q)`wb_s = q`wb_s
+Rewrite_Complete_till_EX_MEM_imem: LEMMA Complete_till_EX_MEM(q)`a_s`imem = q`a_s`imem
+
 
 Rewrite_Complete_till_ID_EX_id_s: LEMMA Complete_till_ID_EX(q)`id_s = q`id_s
 Rewrite_Complete_till_ID_EX_ex_s: LEMMA Complete_till_ID_EX(q)`ex_s = q`ex_s
 Rewrite_Complete_till_ID_EX_mem_s: LEMMA Complete_till_ID_EX(q)`mem_s = q`mem_s
 Rewrite_Complete_till_ID_EX_wb_s: LEMMA Complete_till_ID_EX(q)`wb_s = q`wb_s
+Rewrite_Complete_till_ID_EX_imem: LEMMA Complete_till_ID_EX(q)`a_s`imem = q`a_s`imem
+
 
 Rewrite_Complete_till_IF_ID_id_s: LEMMA Complete_till_IF_ID(q)`id_s = q`id_s
 Rewrite_Complete_till_IF_ID_ex_s: LEMMA Complete_till_IF_ID(q)`ex_s = q`ex_s
 Rewrite_Complete_till_IF_ID_mem_s: LEMMA Complete_till_IF_ID(q)`mem_s = q`mem_s
 Rewrite_Complete_till_IF_ID_wb_s: LEMMA Complete_till_IF_ID(q)`wb_s = q`wb_s
+Rewrite_Complete_till_IF_ID_imem: LEMMA Complete_till_IF_ID(q)`a_s`imem = q`a_s`imem
 
 %|- Rewrite_Complete_till_*_id_s : PROOF
 %|- Rewrite_Complete_till_*_ex_s : PROOF
 %|- Rewrite_Complete_till_*_mem_s : PROOF
 %|- Rewrite_Complete_till_*_wb_s : PROOF
+%|- Rewrite_Complete_till_*_imem : PROOF
 %|- (then (skosimp)
 %|-  (auto-rewrite-theory abstraction_rewrites)
 %|-  (expand Complete_till_$1) (expand Complete_$1) (expand action_$1) (assert))
@@ -78,7 +86,50 @@ projection: THEOREM Flushed?(q) IMPLIES ABS(q) = Projection(q)
 %|- QED
 
 
+Rewrite_dmem_wb: LEMMA Complete_till_MEM_WB(q)`a_s`dmem = q`a_s`dmem
 
+
+Rewrite_pc_wb: LEMMA Complete_till_MEM_WB(q)`a_s`pc = q`a_s`pc
+
+Rewrite_epc_wb: LEMMA Complete_till_MEM_WB(q)`a_s`epc = q`a_s`epc
+
+Rewrite_llflag_wb: LEMMA Complete_till_MEM_WB(q)`a_s`llflag = q`a_s`llflag
+
+%|- Rewrite_*_wb : PROOF
+%|- (then (skosimp) (abs-defs) (expand Complete_till_MEM_WB) (assert))
+%|- QED
+
+Rewrite_wb_val_wb: LEMMA impl_next_wb_val(Complete_till_MEM_WB(q)) = impl_next_wb_val(q)
+
+Rewrite_dec_mem_1: LEMMA impl_dec_mem(Complete_till_MEM_WB(q)) = impl_dec_mem(q)
+
+Rewrite_dec_mem_2: LEMMA impl_dec_mem(Complete_till_EX_MEM(q)) = impl_dec_mem(q)
+
+Rewrite_dec_mem_3: LEMMA impl_dec_mem(Complete_till_ID_EX(q)) = impl_dec_mem(q)
+
+Rewrite_dec_mem_4: LEMMA impl_dec_mem(Complete_till_IF_ID(q)) = impl_dec_mem(q)
+
+Rewrite_dec_ex_1: LEMMA impl_dec_ex(Complete_till_MEM_WB(q)) = impl_dec_ex(q)
+
+Rewrite_dec_ex_2: LEMMA impl_dec_ex(Complete_till_EX_MEM(q)) = impl_dec_ex(q)
+
+Rewrite_dec_ex_3: LEMMA impl_dec_ex(Complete_till_ID_EX(q)) = impl_dec_ex(q)
+
+Rewrite_dec_ex_4: LEMMA impl_dec_ex(Complete_till_IF_ID(q)) = impl_dec_ex(q)
+
+Rewrite_dec_id_1: LEMMA impl_dec_id(Complete_till_MEM_WB(q)) = impl_dec_id(q)
+
+Rewrite_dec_id_2: LEMMA impl_dec_id(Complete_till_EX_MEM(q)) = impl_dec_id(q)
+
+Rewrite_dec_id_3: LEMMA impl_dec_id(Complete_till_ID_EX(q)) = impl_dec_id(q)
+
+Rewrite_dec_id_4: LEMMA impl_dec_id(Complete_till_IF_ID(q)) = impl_dec_id(q)
+
+
+%|- Rewrite_dec_*_* : PROOF
+%|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites )
+%|-  (auto-rewrite-theory implementation_state_1) (assert))
+%|- QED
 
 
 

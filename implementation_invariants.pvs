@@ -3,49 +3,53 @@ BEGIN
 
 
 IMPORTING implementation_trans_1
-IMPORTING abstraction_rewrites
 
 q: VAR state_I
 
 
-inv_ex_need_rs(q): bool = LET dec=impl_dec_ex(q) IN 
-                           q`ex_s`state = normal AND rs(q`ex_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND NOT dec`jr? AND dec`sela = rs 
 
-inv_ex_need_rt(q): bool = LET dec=impl_dec_ex(q) IN 
-                           q`ex_s`state = normal AND rt(q`ex_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND (dec`sela = rt OR  dec`selb = rt ) 
-                                  
-inv_mem_need_rt(q): bool = LET dec=impl_dec_mem(q) IN 
-                           q`mem_s`state = normal AND rs(q`mem_s`instr) /= zero_reg AND dec`store? 
 
-inv_mux_id_rs?(q): bool = syn1_id_need_rs(q) AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rs(q) = abs_id_rs(Complete_till_ID_EX(q))
 
-inv_mux_id_rt?(q): bool = syn1_id_need_rt(q) AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rt(q) = abs_id_rt(Complete_till_ID_EX(q))
+Reachable?_mem_rt(q: state_I): bool = syn1_mem_need_rt(q) AND ( NOT syn1_get_wb_wb?(q) OR rt(q`mem_s`instr) /= impl_wb_dst(q) )  IMPLIES select_r(q`a_s`rf, rt(q`mem_s`instr)) = q`mem_s`rt
 
-inv_mux_ex_rs?(q): bool = inv_ex_need_rs(q)  IMPLIES syn1_mux_ex_rs(q) = abs_ex_rs(Complete_till_EX_MEM(q))
+Reachable?_ex_rs(q: state_I): bool = syn1_ex_need_rs(q) AND ( NOT syn1_get_mem_wb?(q) OR rs(q`ex_s`instr) /= impl_mem_dst(q)  ) AND ( NOT syn1_get_wb_wb?(q) OR rs(q`ex_s`instr) /= impl_wb_dst(q) ) IMPLIES select_r(q`a_s`rf, rs(q`ex_s`instr)) = q`ex_s`rs
 
-inv_mux_ex_rt?(q): bool = inv_ex_need_rt(q)  IMPLIES syn1_mux_ex_rt(q) = abs_ex_rt(Complete_till_EX_MEM(q))
+Reachable?_ex_rt(q: state_I): bool = syn1_ex_need_rt(q) AND ( NOT syn1_get_mem_wb?(q) OR rt(q`ex_s`instr) /= impl_mem_dst(q)  ) AND ( NOT syn1_get_wb_wb?(q) OR rt(q`ex_s`instr) /= impl_wb_dst(q) ) IMPLIES select_r(q`a_s`rf, rt(q`ex_s`instr)) = q`ex_s`rt
 
-inv_mux_mem_rt?(q): bool = inv_mem_need_rt(q) IMPLIES syn1_mux_mem_rt(q) = abs_mem_rt(Complete_till_MEM_WB(q))
+Reachable?_id_ex_rs(q: state_I): bool = syn1_id_need_rs(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_get_ex_wb?(q) OR rs(q`id_s`instr) /= impl_ex_dst(q) 
 
-inv_all?(q): bool = inv_mux_id_rs?(q) AND inv_mux_id_rt?(q) AND inv_mux_ex_rs?(q) AND inv_mux_ex_rt?(q) AND inv_mux_mem_rt?(q)
+Reachable?_id_ex_rt(q: state_I): bool = syn1_id_need_rt(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_get_ex_wb?(q) OR rt(q`id_s`instr) /= impl_ex_dst(q) 
 
-Inv_mux_id_rs: LEMMA Init?(q) IMPLIES inv_mux_id_rs?(q)
-Inv_mux_id_rt: LEMMA Init?(q) IMPLIES inv_mux_id_rt?(q)
-Inv_mux_ex_rs: LEMMA Init?(q) IMPLIES inv_mux_ex_rs?(q)
-Inv_mux_ex_rt: LEMMA Init?(q) IMPLIES inv_mux_ex_rt?(q)
-Inv_mux_mem_rt: LEMMA Init?(q) IMPLIES inv_mux_mem_rt?(q)
+Reachable?_id_mem_rs(q: state_I): bool = syn1_id_need_rs(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_get_mem_wb?(q) OR rs(q`id_s`instr) /= impl_mem_dst(q) OR syn1_current_mem_has_wb_val(q)
 
-%|- Inv_mux_* : PROOF
-%|- (then (skosimp)
-%|-  (auto-rewrite-theory implementation_invariants :always? T)
-%|-  (auto-rewrite-theory abstraction_rewrites :always? T)
-%|-  (auto-rewrite-theory implementation_state_1 :always? T)
-%|-  (auto-rewrite-theory implementation_state_1_sync :always? T) (assert)
-%|-  (abs-defs) (assert) (flatten) (assert))
+Reachable?_id_mem_rt(q: state_I): bool = syn1_id_need_rt(q) AND  NOT syn1_stall_issue(q) IMPLIES  NOT syn1_get_mem_wb?(q) OR rt(q`id_s`instr) /= impl_mem_dst(q) OR syn1_current_mem_has_wb_val(q)
+
+Reachable?(q) : bool = Reachable?_mem_rt(q) AND Reachable?_ex_rs(q) AND Reachable?_ex_rt(q) AND Reachable?_id_ex_rs(q) AND Reachable?_id_ex_rt(q) AND Reachable?_id_mem_rs(q) AND Reachable?_id_mem_rt(q)
+
+
+Inv_Init: THEOREM Init?(q) IMPLIES Reachable?(q)
+%|- Inv_Init : PROOF
+%|- (then (skosimp) (impl-invs)
+%|- 
+%|- (assert) (apply (then (split 1)  (assert) (flatten) (assert))))
+%|- QED
+
+Inv_mem_rt: THEOREM  Reachable?_mem_rt(I_step(q))
+
+Inv_id_ex_rs: THEOREM Reachable?_id_ex_rs(I_step(q))
+Inv_id_ex_rt: THEOREM Reachable?_id_ex_rt(I_step(q))
+Inv_id_mem_rs: THEOREM Reachable?_id_mem_rs(I_step(q))
+Inv_id_mem_rt: THEOREM Reachable?_id_mem_rt(I_step(q))
+
+%|- Inv_id_* : PROOF
+%|- (then (skosimp) (expand Reachable?_id_$1) (flatten)
+%|-  (assert) 
+%|-  (auto-rewrite-theory implementation_state_1_sync :always? T)
+%|-  (assert))
 %|- QED
 
 
-Inv_Init: THEOREM Init?(q) IMPLIES inv_all?(q)
+Inv_ex_rs: THEOREM Reachable?_ex_rs(I_step(q))
 
 
 

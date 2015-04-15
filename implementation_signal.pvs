@@ -49,7 +49,8 @@ i1s_id_branch_taken(q): bool = LET dec = impl_dec_id(q) IN
 i1s_next_pc(q): bvec[32]
             = LET dec = impl_dec_id(q) IN
               IF   q`mem_s`state = exception THEN exception_entry 
-              ELSIF q`id_s`state = normal AND NOT syn1_stall_issue(q) THEN
+              ELSIF syn1_stall_issue(q) THEN q`a_s`pc
+              ELSIF q`id_s`state = normal THEN
                 TABLE
              %------------------------+--------------------++
              | i1s_id_branch_taken(q) | i1s_branch_addr(q) ||
@@ -61,8 +62,8 @@ i1s_next_pc(q): bvec[32]
               ELSE zero ENDIF
 
 i1s_npc_valid(q): bool = LET dec = impl_dec_id(q) IN 
-             q`mem_s`state = exception  OR 
-             ( q`id_s`state = normal AND NOT syn1_stall_issue(q) AND
+             q`mem_s`state = exception  OR syn1_stall_issue(q) OR
+             ( q`id_s`state = normal  AND
                ( i1s_id_branch_taken(q) OR
                  dec`jmp? OR dec`jr? ) )
 

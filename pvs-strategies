@@ -7,10 +7,42 @@
 
 (defstep abs-defs ()
 	 (then
-	 (auto-rewrite-theory "abstraction" :always? t)
+	 (auto-rewrite-theory "abstraction" :always? T)
 	 (stop-rewrite "Complete_till_MEM_WB" "Complete_till_EX_MEM" 
 		       "Complete_till_ID_EX" "Complete_till_IF_ID" 
-		       "Squash_rest?_till_EX_MEM" "Squash_rest?_till_ID_EX" "Squash_rest?_till_IF_ID" ))
+		       "Squash_rest?_till_EX_MEM" "Squash_rest?_till_ID_EX" "Squash_rest?_till_IF_ID"
+                       
+                       ))
          "Most definitions from abstraction theory installed as rewrites"
 	 "Installing rewrite rules from abstraction  definitions")
 
+(defstep abs-rewrites ()
+	 (then (abs-defs)
+	 (auto-rewrite-theory "abstraction_rewrites" :always? T))
+         "Most definitions from abstraction_rewrites theory installed as rewrites"
+	 "Installing rewrite rules from abstraction_rewrites ")
+
+(defstep impl-defs ()
+        (then
+        (auto-rewrite-theory "implementation_trans_1" :always? T )
+        (stop-rewrite "I_step" )
+        (auto-rewrite-theory "implementation_state_1_signal" :always? T)
+        (auto-rewrite-theory "implementation_state_1_sync"   :always? T)
+        (auto-rewrite-theory "implementation_state_1"        :always? T))
+        "Most definitions from implementation_trans_1 installed as rewrites"
+        "Install rewrite rules from implementation transition definitions")
+
+
+(defstep impl-invs()
+       (then (impl-defs) (auto-rewrite-theory "implementation_invariants" :always? T)
+             (stop-rewrite "impl_dec_wb"  "impl_dec_ex"  "impl_dec_id" "impl_dec_mem"
+                           "impl_wb_dst"  "impl_mem_dst" "impl_ex_dst" "impl_id_dst"
+                           "impl_rf_wb_en")
+             )
+       "implementation_invariants theory auto rewrites"
+       "implementation_invariants theory auto rewrites")
+
+(defstep case-analysis ()
+        (apply (then (repeat (lift-if)) (bddsimp) (ground) (assert)))
+        "Brute force simplification...."
+        "Doing case analysis...")

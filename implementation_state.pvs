@@ -89,9 +89,13 @@ impl_rf_output(q):  rf_output = LET dec=impl_dec_id(q),instr=q`id_s`instr,
 impl_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_mem(q) IN
    (# addr := q`mem_s`aluout, mwidth := dec`mwidth, se := dec`loadse? #)
 
+
+impl_rf_wb_en(q): bool = NOT q`wb_s`bubble AND impl_dec_wb(q)`wb?
+
+
 impl_rf_input_write(q): rf_input_write =
   (# addr := impl_wb_dst(q),
-     en   := NOT q`wb_s`bubble AND impl_dec_wb(q)`wb?,
+     en   := impl_rf_wb_en(q),
      value := q`wb_s`val #)
 
 impl_dmem_read_val(q) : bvec[32] = dmem_get_output(impl_dmem_input_read(q), q`a_s`dmem)

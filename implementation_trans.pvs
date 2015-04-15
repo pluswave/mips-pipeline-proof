@@ -47,8 +47,8 @@ i1t_next_id_ex(q) : state_id_ex =
 
 i1t_next_if_id(q): state_if_id =
     (# state := i1s_next_id_state(q), 
-       instr := i1s_get_instr(q),
-       pc    := q`a_s`pc
+       instr := IF syn1_stall_issue(q) THEN q`id_s`instr ELSE i1s_get_instr(q) ENDIF ,
+       pc    := IF syn1_stall_issue(q) THEN q`id_s`pc ELSE q`a_s`pc ENDIF
     #)
 
 

@@ -22,6 +22,18 @@ syn1_future_mem_need_rt(q): bool = LET dec=impl_dec_id(q) IN
                            q`id_s`state = normal AND rs(q`id_s`instr) /= zero_reg AND dec`store? 
 
 
+% 当前状态需求模型
+syn1_ex_need_rs(q): bool = LET dec=impl_dec_ex(q) IN 
+                           q`ex_s`state = normal AND rs(q`ex_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND NOT dec`jr? AND dec`sela = rs 
+
+syn1_ex_need_rt(q): bool = LET dec=impl_dec_ex(q) IN 
+                           q`ex_s`state = normal AND rt(q`ex_s`instr) /= zero_reg AND NOT dec`beq? AND NOT dec`bne? AND (dec`sela = rt OR  dec`selb = rt ) 
+                                  
+syn1_mem_need_rt(q): bool = LET dec=impl_dec_mem(q) IN 
+                           q`mem_s`state = normal AND rt(q`mem_s`instr) /= zero_reg AND dec`store? 
+
+
+
 syn1_get_ex_wb?(q):  bool = q`ex_s`state = normal AND impl_dec_ex(q)`wb?
 
 syn1_get_mem_wb?(q): bool = q`mem_s`state = normal AND impl_dec_mem(q)`wb?

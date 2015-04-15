@@ -156,6 +156,11 @@ A_step(a: state_A): state_A =
      llflag := next_llflag
    #)  
 
+
+i: VAR below(2)
+A_step_new(a,i) : state_A = IF i=0 THEN a ELSE A_step(a) ENDIF
+
+
 END specification_trans
 
 

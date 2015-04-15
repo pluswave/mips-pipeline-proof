@@ -3,10 +3,144 @@ BEGIN
 
 IMPORTING abstraction_rewrites
 IMPORTING specification_trans
+IMPORTING implementation_trans_1
+
+q: VAR state_I
 
 
 
 
+% 译码信号
+
+VC1_dec: LEMMA impl_dec_wb(I_step(q)) = impl_dec_mem(Complete_till_MEM_WB(q))
+
+VC2_dec: LEMMA impl_dec_mem(I_step(q)) = impl_dec_ex(Complete_till_EX_MEM(q))
+
+VC3_dec: LEMMA impl_dec_ex(I_step(q)) = impl_dec_id(Complete_till_ID_EX(q))
+
+%|- VC*_dec: PROOF
+%|- (then (skosimp) (impl-invs) (abs-rewrites)  (assert) (expand I_step) (assert))
+%|- QED
+
+
+% WB 阶段
+
+VC1_rf : LEMMA I_step(q)`a_s`rf = Complete_till_MEM_WB(q)`a_s`rf
+
+%|- VC1_rf : PROOF
+%|- (then (skosimp) (impl-invs) (abs-rewrites)
+%|-  (expand Complete_till_MEM_WB) (assert) (impl-defs) (assert) (expand I_step) (assert))
+%|- QED
+
+
+inv_wb: LEMMA syn1_get_wb_wb?(q) AND impl_wb_dst(q) /= zero_reg IMPLIES q`wb_s`val = select_r(Complete_till_MEM_WB(q)`a_s`rf, impl_wb_dst(q))
+
+%|- inv_wb : PROOF
+%|- (then (skosimp) (abs-defs) (expand Complete_till_MEM_WB) (assert)
+%|-  (expand rf_update) (impl-defs) (assert) (lift-if)
+%|-  (apply (then (repeat (lift-if)) (bddsimp) (ground) (assert)))
+%|-  (auto-rewrite-theory stores :always? T)
+%|-  (assert))
+%|- QED
+
+
+% MEM 阶段
+
+VC1_wb_dst: LEMMA impl_wb_dst(I_step(q)) = impl_mem_dst(Complete_till_MEM_WB(q))
+VC1_wb_en:  LEMMA impl_rf_wb_en(I_step(q)) = abs_mem_rf_wen(Complete_till_MEM_WB(q))
+% VC1_wb_val: LEMMA I_step(q)`wb_s`val = abs_mem_rf_
+
+%|- VC1_wb_*: PROOF
+%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert)  (impl-defs) (assert) (expand I_step) (assert) (case-analysis))
+%|- QED
+
+VC2_rf:  LEMMA Complete_till_MEM_WB(I_step(q))`a_s`rf = Complete_till_EX_MEM(q)`a_s`rf
+
+%|- VC2_rf : PROOF
+%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert)
+%|-  (expand Complete_till_MEM_WB) (expand Complete_till_EX_MEM) (assert)
+%|-  (expand I_step) (assert))
+%|- QED
+
+% MAIN TRICK !!!
+VC_mux_mem_rt: LEMMA syn1_mem_need_rt(q) IMPLIES syn1_mux_mem_rt(q) = abs_mem_rt(Complete_till_MEM_WB(q))
+
+VC2_dmem: LEMMA Complete_till_MEM_WB(I_step(q))`a_s`dmem = Complete_till_EX_MEM(q)`a_s`dmem
+
+%|- VC2_dmem : PROOF
+%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert)
+%|-  (expand Complete_till_MEM_WB) (expand Complete_till_EX_MEM) (assert)
+%|-  (expand I_step) (assert))
+%|- QED
+
+
+
+
+
+
+
+
+% Level : 3个case * 5 个状态 = 15个case 
+
+comm_rf_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = Complete_till_IF_ID(q)`a_s`rf
+comm_dmem_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
+comm_pc_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = Complete_till_IF_ID(q)`a_s`pc
+comm_epc_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = Complete_till_IF_ID(q)`a_s`epc
+comm_llflag_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = Complete_till_IF_ID(q)`a_s`llflag
+
+comm_rf_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = Complete_till_IF_ID(q)`a_s`rf
+comm_dmem_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
+comm_pc_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = Complete_till_IF_ID(q)`a_s`pc
+comm_epc_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = Complete_till_IF_ID(q)`a_s`epc
+comm_llflag_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = Complete_till_IF_ID(q)`a_s`llflag
+
+comm_rf_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = A_step(Complete_till_IF_ID(q)`a_s)`rf
+comm_dmem_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = A_step(Complete_till_IF_ID(q)`a_s)`dmem
+comm_pc_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = A_step(Complete_till_IF_ID(q)`a_s)`pc
+comm_epc_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = A_step(Complete_till_IF_ID(q)`a_s)`epc
+comm_llflag_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = A_step(Complete_till_IF_ID(q)`a_s)`llflag
+
+comm_imem: CLAIM A_step(Complete_till_IF_ID(q)`a_s)`imem = q`a_s`imem
+
+% Level:  3个主要case
+
+stall_prop: CLAIM syn1_stall_issue(q) IMPLIES ABS(I_step(q)) = ABS(q)
+
+
+squash_prop: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES ABS(I_step(q)) = ABS(q)
+
+sync1_prop:  CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES ABS(I_step(q)) = A_step(ABS(q))
+
+%|- sync1_prop : PROOF
+%|- (then (skosimp) (expand ABS) (expand Projection) (assert)
+%|-  (auto-rewrite-theory commutativity)
+%|-  (auto-rewrite-theory abstraction_rewrites)
+%|-  (apply (decompose-equality) (assert))
+%|-  (auto-rewrite-theory implementation_trans_1) (assert)
+%|-  (expand ifu_update) (expand i1s_ifu) (propax))
+%|- QED
+
+sync_func(q): below(2) = IF syn1_stall_issue(q) OR Squash_rest?_till_IF_ID(q) THEN 0 ELSE 1 ENDIF
+
+%|- *_prop : PROOF
+%|- (then (skosimp) (expand ABS) (expand Projection) (assert)
+%|-  (auto-rewrite-theory commutativity) 
+%|- (auto-rewrite-theory abstraction_rewrites) 
+%|-  (apply (decompose-equality) (assert)) )
+%|- QED
+
+% Level : 终极
+
+commuatativity: THEOREM ABS(I_step(q)) = A_step_new(ABS(q), sync_func(q))
+
+%|- commuatativity : PROOF
+%|- (then (skosimp) (auto-rewrite-theory commutativity) (expand A_step_new)
+%|-  (expand sync_func) (assert) (lift-if)
+%|-  (spread
+%|-   (apply (case "syn1_stall_issue(q!1)")
+%|-          (then (lift-if) (bddsimp) (assert) (assert)))
+%|-   ((assert) (assert))))
+%|- QED
 
 
 
