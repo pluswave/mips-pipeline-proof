@@ -1,0 +1,44 @@
+implementation_rewrites_1: THEORY
+BEGIN
+
+IMPORTING implementation_trans_1
+
+q: VAR state_I
+
+Rewrite_dec_ex: LEMMA impl_dec_ex(I_step(q)) = impl_dec_id(q)
+Rewrite_dec_mem: LEMMA impl_dec_mem(I_step(q)) = impl_dec_ex(q)
+Rewrite_dec_wb: LEMMA impl_dec_wb(I_step(q)) = impl_dec_mem(q)
+
+Rewrite_dst_ex: LEMMA impl_ex_dst(I_step(q)) = impl_id_dst(q)
+Rewrite_dst_mem: LEMMA impl_mem_dst(I_step(q)) = impl_ex_dst(q)
+Rewrite_dst_wb: LEMMA impl_wb_dst(I_step(q)) = impl_mem_dst(q)
+
+Rewrite_instr_ex: LEMMA (I_step(q))`ex_s`instr = q`id_s`instr 
+Rewrite_instr_mem: LEMMA (I_step(q))`mem_s`instr = q`ex_s`instr 
+Rewrite_instr_wb: LEMMA (I_step(q))`wb_s`instr = q`mem_s`instr 
+
+Rewrite_pc_ex: LEMMA (I_step(q))`ex_s`pc = q`id_s`pc 
+Rewrite_pc_mem: LEMMA (I_step(q))`mem_s`pc = q`ex_s`pc 
+
+
+
+%|- Rewrite_* : PROOF
+%|- (then (skosimp) (auto-rewrite-theory implementation_rewrites_1) (impl-defs) (assert) (expand I_step) (assert))
+%|- QED
+
+Rewrite_sync_ex_rs: LEMMA syn1_ex_need_rs(I_step(q)) IMPLIES syn1_future_ex_need_rs(q)
+Rewrite_sync_ex_rt: LEMMA syn1_ex_need_rt(I_step(q)) IMPLIES syn1_future_ex_need_rt(q)
+
+%|- Rewrite_sync_ex_* : PROOF
+%|- (then (skosimp) (auto-rewrite-theory implementation_rewrites_1)
+%|-  (impl-defs) (assert) (expand I_step) (assert) (flatten) (assert)
+%|-  (case-analysis))
+%|- QED
+
+
+
+
+
+
+
+END implementation_rewrites_1

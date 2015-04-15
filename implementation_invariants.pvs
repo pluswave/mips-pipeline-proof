@@ -2,7 +2,7 @@ implementation_invariants: THEORY
 BEGIN
 
 
-IMPORTING implementation_trans_1
+IMPORTING implementation_rewrites_1
 
 q: VAR state_I
 
