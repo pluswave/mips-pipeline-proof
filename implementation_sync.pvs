@@ -154,7 +154,7 @@ syn1_mux_id_rs(q): bvec[32] = LET raddr = rs(q`id_s`instr) IN
 syn1_mux_id_rt(q): bvec[32] = LET raddr = rt(q`id_s`instr) IN
               IF syn1_dep_mem_dst(q)(raddr)  THEN impl_next_wb_val(q) 
               ELSIF syn1_dep_wb_dst(q)(raddr)  THEN q`wb_s`val
-              ELSE  impl_rf_output(q)`val_1
+              ELSE  impl_rf_output(q)`val_2
               ENDIF
 
 % 
