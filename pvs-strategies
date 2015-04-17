@@ -38,6 +38,8 @@
              (stop-rewrite "impl_dec_wb"  "impl_dec_ex"  "impl_dec_id" "impl_dec_mem"
                            "impl_wb_dst"  "impl_mem_dst" "impl_ex_dst" "impl_id_dst"
                            "impl_rf_wb_en")
+             (stop-rewrite-theory implementation_state_1_sync)
+             (auto-rewrite-theory implementation_rewrites_1)
              )
        "implementation_invariants theory auto rewrites"
        "implementation_invariants theory auto rewrites")
