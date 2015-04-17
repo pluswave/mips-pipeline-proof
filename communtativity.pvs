@@ -3,7 +3,7 @@ BEGIN
 
 IMPORTING abstraction_rewrites
 IMPORTING specification_trans
-IMPORTING implementation_trans_1
+IMPORTING implementation_invariants
 
 q: VAR state_I
 
@@ -63,7 +63,7 @@ VC2_rf:  LEMMA Complete_till_MEM_WB(I_step(q))`a_s`rf = Complete_till_EX_MEM(q)`
 %|- QED
 
 % MAIN TRICK !!!
-VC_mux_mem_rt: LEMMA syn1_mem_need_rt(q) IMPLIES syn1_mux_mem_rt(q) = abs_mem_rt(Complete_till_MEM_WB(q))
+VC_mux_mem_rt: LEMMA syn1_mem_need_rt_mem(q) IMPLIES syn1_mux_mem_rt(q) = abs_mem_rt(Complete_till_MEM_WB(q))
 
 VC2_dmem: LEMMA Complete_till_MEM_WB(I_step(q))`a_s`dmem = Complete_till_EX_MEM(q)`a_s`dmem
 
