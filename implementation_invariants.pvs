@@ -73,6 +73,21 @@ Inv_Init: THEOREM Init?(q) IMPLIES Reachable?(q)
 
 Inv_mem_rt: THEOREM Reachable?_ex_rt_mem(q) IMPLIES Reachable?_mem_rt_mem(I_step(q))
 
+% 短多了!
+% 
+%|- Inv_mem_rt : PROOF
+%|- (then (skosimp) (impl-invs)
+%|-  (stop-rewrite-theory implementation_state_1_sync) (abs-rewrites)
+%|-  (assert) (flatten) (auto-rewrite-theory implementation_rewrites_1)
+%|-  (assert) (expand syn1_mux_mem_rt) (assert)
+%|-  (spread (case-analysis)
+%|-   ((then (expand I_step (2) 1) (assert) (expand syn1_mux_ex_rt)
+%|-     (propax))
+%|-    (then (expand I_step (2) 1) (assert) (expand syn1_mux_ex_rt)
+%|-     (case-analysis))
+%|-    (then (expand syn1_ex_need_rt) (assert)))))
+%|- QED
+
 % 可以工作的版本，有点长
 %|- Inv_mem_rt : PROOF
 %|- (then (skosimp) (auto-rewrite-theory implementation_invariants)
