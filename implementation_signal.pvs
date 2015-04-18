@@ -32,7 +32,9 @@ i1s_ex_exception(q): bool = LET dec = impl_dec_ex(q) IN
 
 
 i1s_next_mem_state(q): stage_state = 
-        IF i1s_ex_exception(q) THEN exception ELSE q`ex_s`state ENDIF
+        IF q`mem_s`state = exception THEN bubble
+        ELSIF i1s_ex_exception(q) THEN exception
+        ELSE q`ex_s`state ENDIF
 
 
 i1s_branch_addr(q): bvec[32] = q`id_s`pc + 4 + sign_extend[16](32) (short_immed_of (q`id_s`instr))  
@@ -68,7 +70,8 @@ i1s_npc_valid(q): bool = LET dec = impl_dec_id(q) IN
                  dec`jmp? OR dec`jr? ) )
 
 i1s_next_ex_state(q): stage_state = LET dec=impl_dec_id(q) IN
-             IF dec`invalid?   THEN exception
+             IF q`mem_s`state = exception THEN bubble
+             ELSIF dec`invalid?   THEN exception
              ELSIF syn1_stall_issue(q) THEN bubble 
              ELSE q`id_s`state ENDIF
 
