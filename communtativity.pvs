@@ -5,8 +5,7 @@ IMPORTING abstraction_rewrites
 IMPORTING specification_trans
 IMPORTING implementation_invariants
 
-q: VAR state_I
-
+q: VAR Reachable_state_I
 
 
 
@@ -19,7 +18,7 @@ VC2_dec: LEMMA impl_dec_mem(I_step(q)) = impl_dec_ex(Complete_till_EX_MEM(q))
 VC3_dec: LEMMA impl_dec_ex(I_step(q)) = impl_dec_id(Complete_till_ID_EX(q))
 
 %|- VC*_dec: PROOF
-%|- (then (skosimp) (impl-invs) (abs-rewrites)  (assert) (expand I_step) (assert))
+%|- (then (skosimp) (comm-rewrites) (abs-rewrites)  (assert) (expand I_step) (assert))
 %|- QED
 
 
@@ -28,56 +27,70 @@ VC3_dec: LEMMA impl_dec_ex(I_step(q)) = impl_dec_id(Complete_till_ID_EX(q))
 VC1_rf : LEMMA I_step(q)`a_s`rf = Complete_till_MEM_WB(q)`a_s`rf
 
 %|- VC1_rf : PROOF
-%|- (then (skosimp) (impl-invs) (abs-rewrites)
-%|-  (expand Complete_till_MEM_WB) (assert) (impl-defs) (assert) (expand I_step) (assert))
+%|- (then (skosimp) (comm-rewrites) (assert))
 %|- QED
 
 
-inv_wb: LEMMA syn1_get_wb_wb?(q) AND impl_wb_dst(q) /= zero_reg IMPLIES q`wb_s`val = select_r(Complete_till_MEM_WB(q)`a_s`rf, impl_wb_dst(q))
-
-%|- inv_wb : PROOF
-%|- (then (skosimp) (abs-defs) (expand Complete_till_MEM_WB) (assert)
-%|-  (expand rf_update) (impl-defs) (assert) (lift-if)
-%|-  (apply (then (repeat (lift-if)) (bddsimp) (ground) (assert)))
-%|-  (auto-rewrite-theory stores :always? T)
-%|-  (assert))
-%|- QED
 
 
 % MEM 阶段
 
 VC1_wb_dst: LEMMA impl_wb_dst(I_step(q)) = impl_mem_dst(Complete_till_MEM_WB(q))
 VC1_wb_en:  LEMMA impl_rf_wb_en(I_step(q)) = abs_mem_rf_wen(Complete_till_MEM_WB(q))
-% VC1_wb_val: LEMMA I_step(q)`wb_s`val = abs_mem_rf_
 
 %|- VC1_wb_*: PROOF
-%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert)  (impl-defs) (assert) (expand I_step) (assert) (case-analysis))
+%|- (then (skosimp) (comm-rewrites)  (assert)  (impl-defs) (assert) (expand I_step) (assert) (case-analysis))
 %|- QED
 
 VC2_rf:  LEMMA Complete_till_MEM_WB(I_step(q))`a_s`rf = Complete_till_EX_MEM(q)`a_s`rf
 
 %|- VC2_rf : PROOF
-%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert)
+%|- (then (skosimp) (comm-rewrites)  (assert)
 %|-  (expand Complete_till_MEM_WB) (expand Complete_till_EX_MEM) (assert)
 %|-  (expand I_step) (assert))
 %|- QED
 
-% MAIN TRICK !!!
-VC_mux_mem_rt: LEMMA syn1_mem_need_rt_mem(q) IMPLIES syn1_mux_mem_rt(q) = abs_mem_rt(Complete_till_MEM_WB(q))
 
 VC2_dmem: LEMMA Complete_till_MEM_WB(I_step(q))`a_s`dmem = Complete_till_EX_MEM(q)`a_s`dmem
 
 %|- VC2_dmem : PROOF
-%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert)
-%|-  (expand Complete_till_MEM_WB) (expand Complete_till_EX_MEM) (assert)
-%|-  (expand I_step) (assert))
+%|- (then (skosimp) (comm-rewrites) (assert) (expand Complete_till_EX_MEM)
+%|-  (assert) (expand I_step) (assert) (typepred q!1) (assert) (flatten)
+%|-  (expand syn1_mem_need_rt_mem)
+%|-  (spread (case "q!1`mem_s`state = normal AND impl_dec_mem(q!1)`store?")
+%|-   ((then (replace -1) (replace -2) (propax))
+%|-    (then (replace 1)
+%|-     (spread (rewrite 1 2)
+%|-      ((then (expand dmem_update) (propax))
+%|-       (then (expand dmem_update) (propax))))))))
 %|- QED
 
 
+VC2_pc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_MEM_WB(I_step(q))`a_s`pc = Complete_till_EX_MEM(q)`a_s`pc
+VC2_epc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_MEM_WB(I_step(q))`a_s`epc = Complete_till_EX_MEM(q)`a_s`epc
+VC2_llflag_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_MEM_WB(I_step(q))`a_s`llflag = Complete_till_EX_MEM(q)`a_s`llflag
+
+%|- VC2_pc_1 : PROOF
+%|- VC2_epc_1 : PROOF
+%|- VC2_llflag_1: PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_MEM_WB)
+%|-  (expand Complete_till_EX_MEM) (assert) (expand I_step)
+%|-  (expand Squash_rest?_till_EX_MEM) (assert) (expand ifu_update)
+%|-  (propax))
+%|- QED
+
+VC2_pc_2: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_EX_MEM(q)`a_s`pc = q`a_s`pc
+VC2_epc_2: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_EX_MEM(q)`a_s`epc = q`a_s`epc
+
+%|- VC2_pc_2 : PROOF
+%|- VC2_epc_2 : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Squash_rest?_till_EX_MEM)
+%|-  (expand Complete_till_EX_MEM) (assert))
+%|- QED
 
 
-
-
+% EX阶段
+VC3_rf: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_s`rf
 
 
 % Level : 3个case * 5 个状态 = 15个case 

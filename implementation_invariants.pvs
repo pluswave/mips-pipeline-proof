@@ -169,13 +169,24 @@ Inv_id_rt_id: THEOREM Reachable?_id_rt_id(q)
 
 
 
-Inv_implementation: THEOREM Reachable?(q) IMPLIES Reachable?(I_step(q))
+Inv_Closure: THEOREM Reachable?(q) IMPLIES Reachable?(I_step(q))
 
-%|- Inv_implementation : PROOF
+%|- Inv_Closure : PROOF
 %|- (then (skosimp) (expand Reachable?)
 %|-  (auto-rewrite-theory implementation_invariants) (assert) (flatten)
 %|-  (assert) (use Inv_mem_rt_mem) (assert))
 %|- QED
+
+
+Reachable_state_I: TYPE = { q: state_I | Reachable?(q) }
+
+I_step_reachable: JUDGEMENT 
+	I_step(q:Reachable_state_I) HAS_TYPE Reachable_state_I
+
+%|- I_step_reachable : PROOF
+%|- (then (skosimp) (typepred q!1) (use Inv_Closure) (assert))
+%|- QED
+
 
 
 END implementation_invariants

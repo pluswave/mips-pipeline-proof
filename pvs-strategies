@@ -44,6 +44,13 @@
        "implementation_invariants theory auto rewrites"
        "implementation_invariants theory auto rewrites")
 
+(defstep comm-rewrites()
+  (then (auto-rewrite-theory commutativity) (impl-invs) (abs-rewrites)
+        (stop-rewrite "abs_mem_rt" "abs_ex_rs" "abs_ex_rt" "abs_id_rs" "abs_id_rt")
+        )
+  "all wrirtes for  commutativity"
+  "rewrite strategy for commutativity " )
+
 (defstep case-analysis ()
         (apply (then (repeat (lift-if)) (bddsimp) (ground) (assert)))
         "Brute force simplification...."
