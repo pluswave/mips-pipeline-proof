@@ -30,7 +30,14 @@ VC1_rf : LEMMA I_step(q)`a_s`rf = Complete_till_MEM_WB(q)`a_s`rf
 %|- (then (skosimp) (comm-rewrites) (assert))
 %|- QED
 
+VC1_dmem: LEMMA Complete_till_MEM_WB(q)`a_s`dmem = q`a_s`dmem
+VC1_pc: LEMMA Complete_till_MEM_WB(q)`a_s`pc = q`a_s`pc
+VC1_epc: LEMMA Complete_till_MEM_WB(q)`a_s`epc = q`a_s`epc
+VC1_llflag: LEMMA Complete_till_MEM_WB(q)`a_s`llflag = q`a_s`llflag
 
+%|- VC1_* : PROOF
+%|- (then (skosimp) (comm-rewrites) (assert) (expand Complete_till_MEM_WB) (assert))
+%|- QED
 
 
 % MEM 阶段
@@ -51,7 +58,7 @@ VC2_rf:  LEMMA Complete_till_MEM_WB(I_step(q))`a_s`rf = Complete_till_EX_MEM(q)`
 %|- QED
 
 
-VC2_dmem: LEMMA Complete_till_MEM_WB(I_step(q))`a_s`dmem = Complete_till_EX_MEM(q)`a_s`dmem
+VC2_dmem: LEMMA I_step(q)`a_s`dmem = Complete_till_EX_MEM(q)`a_s`dmem
 
 %|- VC2_dmem : PROOF
 %|- (then (skosimp) (comm-rewrites) (assert) (expand Complete_till_EX_MEM)
@@ -66,9 +73,9 @@ VC2_dmem: LEMMA Complete_till_MEM_WB(I_step(q))`a_s`dmem = Complete_till_EX_MEM(
 %|- QED
 
 
-VC2_pc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_MEM_WB(I_step(q))`a_s`pc = Complete_till_EX_MEM(q)`a_s`pc
-VC2_epc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_MEM_WB(I_step(q))`a_s`epc = Complete_till_EX_MEM(q)`a_s`epc
-VC2_llflag_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_MEM_WB(I_step(q))`a_s`llflag = Complete_till_EX_MEM(q)`a_s`llflag
+VC2_pc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES  I_step(q)`a_s`pc = Complete_till_EX_MEM(q)`a_s`pc
+VC2_epc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`a_s`epc = Complete_till_EX_MEM(q)`a_s`epc
+VC2_llflag_1: LEMMA I_step(q)`a_s`llflag = Complete_till_EX_MEM(q)`a_s`llflag
 
 %|- VC2_pc_1 : PROOF
 %|- VC2_epc_1 : PROOF
@@ -88,8 +95,99 @@ VC2_epc_2: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_EX_MEM(q)
 %|-  (expand Complete_till_EX_MEM) (assert))
 %|- QED
 
-
 % EX阶段
+
+% 引理
+VC_src1_1: LEMMA syn1_ex_need_rs_ex(q) IMPLIES  i1s_src1(q) = abs_ex_src1(Complete_till_EX_MEM(q))
+VC_src1_2: LEMMA syn1_ex_need_rt_ex(q) IMPLIES  i1s_src1(q) = abs_ex_src1(Complete_till_EX_MEM(q))
+
+%|- VC_src1_2 : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand i1s_src1) (expand abs_ex_src1)
+%|-  (assert) (expand src1_mux) (assert) (lift-if 1) (copy -1)
+%|-  (expand syn1_ex_need_rt_ex (-1) 1) (flatten)
+%|-  (spread (split -2)
+%|-   ((then (assert) (typepred q!1) (assert))
+%|-    (spread (case "syn1_ex_need_rs_ex(q!1)")
+%|-     ((then (assert) (typepred q!1) (assert) (flatten) (case-analysis))
+%|-      (then (expand impl_dec_ex) (expand syn1_ex_need_rs_ex) (assert)
+%|-       (expand impl_dec_ex) (auto-rewrite-theory decoder_props)
+%|-       (spread (case-analysis)
+%|-        ((then (hide-all-but (-1 -5)) (expand syn1_ex_need_rt_ex)
+%|-          (flatten)
+%|-          (spread (split -2)
+%|-           ((then (assert) (expand decoder) (assert)
+%|-             (expand impl_dec_ex) (propax))
+%|-            (then (expand decoder) (expand impl_dec_ex) (assert)
+%|-             (expand decoder) (assert) (expand decode_sel_b)
+%|-             (case-analysis) (expand alu_r?) (propax)))))
+%|-         (then (auto-rewrite-theory instruction_decoder)
+%|-          (split-abs-opcode))))))))))
+%|- QED
+
+%|- VC_src1_1[rs] : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand i1s_src1) (expand abs_ex_src1)
+%|-  (assert) (expand src1_mux) (assert) (lift-if 1)
+%|-  (spread (bddsimp)
+%|-   ((then (assert) (typepred q!1) (assert))
+%|-    (then (expand syn1_ex_need_#1_ex) (assert)))))
+%|- QED
+
+VC_src2_1: LEMMA syn1_ex_need_rt_ex(q) IMPLIES i1s_src2(q) = abs_ex_src2(Complete_till_EX_MEM(q))
+
+%|- VC_src2_1 : PROOF
+%|- (then (skosimp) (expand i1s_src2) (expand abs_ex_src2)
+%|-  (expand src2_mux) (copy -1) (expand syn1_ex_need_rt_ex (-1) 1)
+%|-  (comm-rewrites) (assert) (flatten)
+%|-  (spread (split -2)
+%|-   ((then (auto-rewrite-theory decoder_props) (assert) (case-analysis)
+%|-     (hide-all-but (-1 -4)) (expand impl_dec_ex)
+%|-     (auto-rewrite-theory instruction_decoder) (split-abs-opcode))
+%|-    (then (case-analysis) (typepred q!1) (assert)))))
+%|- QED
+
+VC_src2_2: LEMMA impl_dec_ex(q)`selb /= rt IMPLIES i1s_src2(q) = abs_ex_src2(Complete_till_EX_MEM(q))
+
+%|- VC_src2_2 : PROOF
+%|- (then (skosimp) (expand i1s_src2) (expand abs_ex_src2) (comm-rewrites)
+%|-  (assert) (expand src2_mux) (case-analysis))
+%|- QED
+
+
+VC_ex_dmem_wen: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES i1s_dmem_wen(I_step(q)) = abs_ex_dmem_wen(Complete_till_EX_MEM(q))
+
+VC_ex_dmem_value: LEMMA NOT Squash_rest?_till_EX_MEM(q) AND abs_ex_dmem_wen(Complete_till_EX_MEM(q)) IMPLIES syn1_mux_mem_rt(I_step(q)) = abs_ex_rt(Complete_till_EX_MEM(q))
+
+%|- VC_ex_dmem_value : PROOF
+%|- (then (skosimp) (comm-rewrites) (assert) (typepred "I_step(q!1)")
+%|-  (expand Reachable?) (flatten) (assert)
+%|-  (spread (case "syn1_mem_need_rt_mem(I_step(q!1))")
+%|-   ((then (assert) (rewrite -2) (expand abs_mem_rt) (expand abs_ex_rt)
+%|-     (assert))
+%|-    (then (hide-all-but (-7 1 2)) (expand syn1_mem_need_rt_mem) (assert)
+%|-     (expand I_step) (assert) (expand abs_ex_dmem_wen) (assert)
+%|-     (spread (case-analysis)
+%|-      ((then (expand Squash_rest?_till_EX_MEM) (assert))
+%|-       (then (expand Squash_rest?_till_EX_MEM) (assert))))))))
+%|- QED
+
+
+VC3_dmem: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`dmem = Complete_till_ID_EX(q)`a_s`dmem
+
+%|- VC3_dmem : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_EX_MEM)
+%|-  (expand Complete_till_ID_EX) (assert)
+%|-  (spread (case-analysis)
+%|-   ((then (expand Squash_rest?_till_EX_MEM) (expand I_step (1) 2)
+%|-     (assert) (expand dmem_update) (propax))
+%|-    (spread (case "i1s_dmem_wen(I_step(q!1))")
+%|-     ((then (copy -1) (expand i1s_dmem_wen (-1) 1) (assert)
+%|-       (replace -1 2) (flatten) (assert) (expand abs_mem_rt)
+%|-       (expand abs_ex_rt) (assert) (expand I_step (2) 1) (assert))
+%|-      (then (copy 1) (expand i1s_dmem_wen (1) 1) (assert) (replace 1 4)
+%|-       (expand dmem_update) (propax)))))))
+%|- QED
+
+
 VC3_rf: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_s`rf
 
 

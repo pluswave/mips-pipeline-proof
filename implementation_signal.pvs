@@ -8,11 +8,13 @@ q: VAR state_I
 
 i1s_ifu(q): ifu = (# pc := q`a_s`pc, imem := q`a_s`imem #)
 
+i1s_dmem_wen(q): bool = LET dec = impl_dec_mem(q) IN q`mem_s`state = normal AND dec`store?
+            AND ( dec`atom? IMPLIES q`a_s`llflag )
+
 
 i1s_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_mem(q) IN
    (# addr := q`mem_s`aluout,
-      wen := q`mem_s`state = normal AND dec`store?
-            AND ( dec`atom? IMPLIES q`a_s`llflag ),
+      wen := i1s_dmem_wen(q),
       value :=  syn1_mux_mem_rt(q),
       mwidth := dec`mwidth  #)
 

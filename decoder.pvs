@@ -178,9 +178,12 @@ decoder_load: LEMMA load?(decoder(op)`wbsrc) = decoder(op)`load?
 decoder_atom: LEMMA decoder(op)`atom? IMPLIES decoder(op)`mwidth = w32
 decoder_atom_2: LEMMA decoder(op)`atom? IMPLIES decoder(op)`load? OR decoder(op)`store?
 
+
+decoder_load_sela: LEMMA decoder(op)`load? IMPLIES decoder(op)`sela = rs
+decoder_load_selb: LEMMA decoder(op)`load? IMPLIES decoder(op)`selb = sext
 decoder_store_sela: LEMMA decoder(op)`store? IMPLIES decoder(op)`sela = rs
 decoder_store_selb: LEMMA decoder(op)`store? IMPLIES decoder(op)`selb = sext
-
+decoder_sela_selb: LEMMA decoder(op)`selb = rt IMPLIES decoder(op)`sela = rs
 
 decoder_disjoint_1: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`load?
 decoder_disjoint_2: LEMMA decoder(op)`invalid? IMPLIES NOT decoder(op)`store?

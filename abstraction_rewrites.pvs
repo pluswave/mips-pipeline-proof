@@ -42,6 +42,16 @@ Rewrite_Complete_till_IF_ID_imem: LEMMA Complete_till_IF_ID(q)`a_s`imem = q`a_s`
 %|-  (expand Complete_till_$1) (expand Complete_$1) (expand action_$1) (assert))
 %|- QED
 
+Rewrite_Squash_rest_till_EX_MEM_1: LEMMA Squash_rest?_till_EX_MEM(Complete_till_MEM_WB(q)) = Squash_rest?_till_EX_MEM(q) 
+Rewrite_Squash_rest_till_EX_MEM_2: LEMMA Squash_rest?_till_EX_MEM(Complete_till_EX_MEM(q)) = Squash_rest?_till_EX_MEM(q) 
+Rewrite_Squash_rest_till_EX_MEM_3: LEMMA Squash_rest?_till_EX_MEM(Complete_till_ID_EX(q)) = Squash_rest?_till_EX_MEM(q) 
+Rewrite_Squash_rest_till_EX_MEM_4: LEMMA Squash_rest?_till_EX_MEM(Complete_till_IF_ID(q)) = Squash_rest?_till_EX_MEM(q) 
+
+%|- Rewrite_Squash_rest_till_EX_MEM_* : PROOF
+%|- (then (skosimp) (abs-rewrites) (expand Squash_rest?_till_EX_MEM)
+%|-  (assert))
+%|- QED
+
 
 % bubble指令情况下，相关的完成函数不改变架构状态
 Rewrite_Complete_till_MEM_WB_bubble: LEMMA q`wb_s`bubble IMPLIES Complete_till_MEM_WB(q)`a_s = q`a_s

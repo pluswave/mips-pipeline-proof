@@ -61,10 +61,13 @@ abs_ex_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_ex(q) IN
 
 abs_ex_dmem_load_val(q): bvec[32] = dmem_get_output( abs_ex_dmem_input_read(q), q`a_s`dmem)
 
+abs_ex_dmem_wen(q): bool = LET dec = impl_dec_ex(q) IN
+        q`ex_s`state = normal AND dec`store? AND dmem_addr_valid?(abs_ex_aluout(q)`out)
+             AND (dec`atom? IMPLIES q`a_s`llflag )
+
 abs_ex_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_ex(q) IN
    (# addr := abs_ex_aluout(q)`out, mwidth := dec`mwidth,
-      wen := q`ex_s`state = normal AND dec`store? 
-             AND (dec`atom? IMPLIES q`a_s`llflag ),
+      wen := abs_ex_dmem_wen(q),
       value := abs_ex_rt(q) #)
 
 abs_ex_rf_wb_val(q): bvec[32] = 

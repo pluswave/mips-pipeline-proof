@@ -49,8 +49,33 @@ Rewrite_sync_mem_wb: LEMMA syn1_get_mem_wb?(I_step(q)) IMPLIES syn1_get_ex_wb?(q
 %|- QED
 
 
+Rewrite_ex_need_rs_1: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`store? IMPLIES syn1_ex_need_rs_ex(q)
+Rewrite_ex_need_rs_2: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`load? IMPLIES syn1_ex_need_rs_ex(q)
+Rewrite_ex_selb_not_rt_1: LEMMA impl_dec_ex(q)`store? IMPLIES impl_dec_ex(q)`selb /= rt
+Rewrite_ex_selb_not_rt_2: LEMMA impl_dec_ex(q)`load? IMPLIES impl_dec_ex(q)`selb /= rt
+Rewrite_ex_store_not_ov: LEMMA impl_dec_ex(q)`store? IMPLIES NOT impl_dec_ex(q)`checkov?
+Rewrite_ex_load_not_ov: LEMMA impl_dec_ex(q)`load? IMPLIES NOT impl_dec_ex(q)`checkov?
 
+%|- Rewrite_ex_* : PROOF
+%|- (then (skosimp) (impl-defs) (assert)
+%|-  (auto-rewrite-theory decoder_props) (assert))
+%|- QED
 
+Rewrite_state_ex_mem: LEMMA I_step(q)`mem_s`state = normal IMPLIES q`ex_s`state = normal
+
+%|- Rewrite_state_ex_mem : PROOF
+%|- (then (skosimp) (impl-defs) (assert) (expand I_step) (assert)
+%|-  (case-analysis))
+%|- QED
+
+Rewrite_ex_alu_wb_1: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl_dec_ex(q)`wbsrc = aluout IMPLIES syn1_ex_need_rs_ex(q) OR syn1_ex_need_rt_ex(q)
+Rewrite_ex_alu_wb_2: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl_dec_ex(q)`wbsrc = aluout IMPLIES syn1_ex_need_rt_ex(q) OR impl_dec_ex(q)`selb /= rt
+
+%|- Rewrite_ex_alu_wb_* : PROOF
+%|- (then (skosimp) (impl-defs) (assert)
+%|-  (auto-rewrite-theory decoder_props)
+%|-  (auto-rewrite-theory instruction_decoder) (assert) (case-analysis))
+%|- QED
 
 
 

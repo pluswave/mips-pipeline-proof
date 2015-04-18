@@ -46,7 +46,10 @@
 
 (defstep comm-rewrites()
   (then (auto-rewrite-theory commutativity) (impl-invs) (abs-rewrites)
-        (stop-rewrite "abs_mem_rt" "abs_ex_rs" "abs_ex_rt" "abs_id_rs" "abs_id_rt")
+        (stop-rewrite "abs_mem_rt" "abs_ex_rs" "abs_ex_rt" "abs_id_rs" "abs_id_rt"
+                      "abs_ex_src1" "abs_ex_src2" "i1s_src1" "i1s_src2"
+                      "i1s_dmem_wen" "abs_ex_dmem_wen"
+                      )
         )
   "all wrirtes for  commutativity"
   "rewrite strategy for commutativity " )
