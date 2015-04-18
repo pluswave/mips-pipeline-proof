@@ -178,6 +178,7 @@ decoder_load: LEMMA load?(decoder(op)`wbsrc) = decoder(op)`load?
 decoder_atom: LEMMA decoder(op)`atom? IMPLIES decoder(op)`mwidth = w32
 decoder_atom_2: LEMMA decoder(op)`atom? IMPLIES decoder(op)`load? OR decoder(op)`store?
 
+decoder_checkov_aluout: LEMMA decoder(op)`checkov? IMPLIES decoder(op)`wbsrc = aluout
 
 decoder_load_sela: LEMMA decoder(op)`load? IMPLIES decoder(op)`sela = rs
 decoder_load_selb: LEMMA decoder(op)`load? IMPLIES decoder(op)`selb = sext

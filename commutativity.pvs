@@ -187,6 +187,17 @@ VC3_dmem: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`dmem = Complete_till_ID_EX(q
 %|-       (expand dmem_update) (propax)))))))
 %|- QED
 
+VC_wb_alu: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl_dec_ex(q)`wbsrc = aluout IMPLIES i1s_src1(q) = abs_ex_src1(Complete_till_EX_MEM(q)) AND i1s_src2(q) = abs_ex_src2(Complete_till_EX_MEM(q))
+
+%|- VC_wb_alu : PROOF
+%|- (then (skosimp) (assert) (use Rewrite_ex_alu_wb_1)
+%|-  (use Rewrite_ex_alu_wb_2) (assert) (comm-rewrites) (assert)
+%|-  (case-analysis))
+%|- QED
+
+
+VC_ex_rf_wen: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES abs_mem_rf_wen(Complete_till_MEM_WB(I_step(q))) = abs_ex_rf_wen(Complete_till_EX_MEM(q))
+
 
 VC3_rf: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_s`rf
 
