@@ -72,13 +72,16 @@ abs_ex_rf_wb_val(q): bvec[32] =
                  q`ex_s`pc + 4,  abs_ex_dmem_load_val(q),
                  q`ex_s`instr )
 
-abs_ex_rf_input_write(q): rf_input_write = 
+abs_ex_rf_wen(q): bool =
    LET dec=impl_dec_ex(q) IN
-   (# addr := impl_ex_dst(q), value := abs_ex_rf_wb_val(q),
-      en := q`ex_s`state = normal AND dec`wb? AND
+     q`ex_s`state = normal AND dec`wb? AND
           ( dec`checkov? IMPLIES NOT abs_ex_aluout(q)`ov )
       AND ( dec`load? IMPLIES 
-        dmem_addr_valid?(abs_ex_aluout(q)`out) ) #)
+        dmem_addr_valid?(abs_ex_aluout(q)`out) )
+
+abs_ex_rf_input_write(q): rf_input_write = 
+   (# addr := impl_ex_dst(q), value := abs_ex_rf_wb_val(q),
+      en := abs_ex_rf_wen(q) #)
 
 abs_ex_exception(q) : bool = LET dec = impl_dec_ex(q) IN
    q`ex_s`state = exception OR (q`ex_s`state = normal AND 

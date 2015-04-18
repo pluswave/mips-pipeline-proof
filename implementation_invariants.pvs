@@ -37,17 +37,29 @@ mem_dep_1: LEMMA syn1_dep_mem_dst(q)(regaddr) IMPLIES select_r(Complete_till_EX_
 
 mem_dep_2: LEMMA NOT syn1_dep_mem_dst(q)(regaddr) IMPLIES select_r(Complete_till_EX_MEM(q)`a_s`rf, regaddr) = select_r(Complete_till_MEM_WB(q)`a_s`rf, regaddr)
 
+ex_wb_1: LEMMA NOT syn1_get_ex_wb?(q) IMPLIES NOT abs_ex_rf_wen(Complete_till_EX_MEM(q))
+
+%|- ex_wb_1 : PROOF
+%|- (then (skosimp) (abs-rewrites) (expand abs_ex_rf_wen)
+%|-  (expand syn1_get_ex_wb?) (assert) (flatten) (assert))
+%|- QED
+
+
 ex_dep_1: LEMMA NOT syn1_dep_ex_dst(q)(regaddr) IMPLIES select_r(Complete_till_ID_EX(q)`a_s`rf, regaddr) = select_r(Complete_till_EX_MEM(q)`a_s`rf, regaddr)
 
 %|- ex_dep_1 : PROOF
 %|- (then (skosimp) (impl-invs) (abs-rewrites) (assert)
 %|-  (expand Complete_till_ID_EX) (assert) (case-analysis)
-%|-  (auto-rewrite-theory stores :always? T) (postpone))
+%|-  (auto-rewrite-theory stores :always? T) (expand syn1_dep_ex_dst)
+%|-  (spread (split 1)
+%|-   ((assert) (then (assert) (expand rf_update) (propax))
+%|-    (then (expand rf_update) (lift-if) (bddsimp)
+%|-     (auto-rewrite-theory stores :always? T) (assert) (case-analysis)))))
 %|- QED
+
 
 %|- wb_dep_*[MEM_WB] : PROOF
 %|- mem_dep_*[EX_MEM] : PROOF
-%|- ex_dep_*[ID_EX] : PROOF
 %|- (then (skosimp) (impl-defs) (abs-rewrites) (assert)
 %|-  (expand Complete_till_#1) (assert)
 %|-  (auto-rewrite-theory datapath :always? T)
@@ -144,7 +156,26 @@ Inv_ex_rt_mem: THEOREM Reachable?_ex_rt_mem(I_step(q))
 
 Inv_id_rs_id: THEOREM Reachable?_id_rs_id(q)
 
-Inv_id_rt_id: THEOREM Reachable?_id_rt_id(I_step(q))
+%|- Inv_id_*_id : PROOF
+%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert) (flatten)
+%|-  (expand syn1_stall_issue) (flatten) 
+%|-  (expand syn1_rt_no_stall) (flatten) (expand syn1_rt_id_mem_no_stall)
+%|-  (expand syn1_rt_id_ex_no_stall)  (assert)
+%|-  (expand syn1_mux_id_rt) (case-analysis) (expand rf_get_output)
+%|-  (propax))
+%|- QED
+
+Inv_id_rt_id: THEOREM Reachable?_id_rt_id(q)
+
+
+
+Inv_implementation: THEOREM Reachable?(q) IMPLIES Reachable?(I_step(q))
+
+%|- Inv_implementation : PROOF
+%|- (then (skosimp) (expand Reachable?)
+%|-  (auto-rewrite-theory implementation_invariants) (assert) (flatten)
+%|-  (assert) (use Inv_mem_rt_mem) (assert))
+%|- QED
 
 
 END implementation_invariants
