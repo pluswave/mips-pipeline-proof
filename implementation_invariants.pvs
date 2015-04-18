@@ -37,8 +37,17 @@ mem_dep_1: LEMMA syn1_dep_mem_dst(q)(regaddr) IMPLIES select_r(Complete_till_EX_
 
 mem_dep_2: LEMMA NOT syn1_dep_mem_dst(q)(regaddr) IMPLIES select_r(Complete_till_EX_MEM(q)`a_s`rf, regaddr) = select_r(Complete_till_MEM_WB(q)`a_s`rf, regaddr)
 
+ex_dep_1: LEMMA NOT syn1_dep_ex_dst(q)(regaddr) IMPLIES select_r(Complete_till_ID_EX(q)`a_s`rf, regaddr) = select_r(Complete_till_EX_MEM(q)`a_s`rf, regaddr)
+
+%|- ex_dep_1 : PROOF
+%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert)
+%|-  (expand Complete_till_ID_EX) (assert) (case-analysis)
+%|-  (auto-rewrite-theory stores :always? T) (postpone))
+%|- QED
+
 %|- wb_dep_*[MEM_WB] : PROOF
 %|- mem_dep_*[EX_MEM] : PROOF
+%|- ex_dep_*[ID_EX] : PROOF
 %|- (then (skosimp) (impl-defs) (abs-rewrites) (assert)
 %|-  (expand Complete_till_#1) (assert)
 %|-  (auto-rewrite-theory datapath :always? T)
@@ -59,8 +68,6 @@ Reachable?_id_rs_id(q): bool = syn1_id_need_rs_id(q)  AND NOT syn1_stall_issue(q
 
 Reachable?_id_rt_id(q): bool = syn1_id_need_rt_id(q)  AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rt(q) = abs_id_rs(Complete_till_ID_EX(q))
 
-Reachable?_id_rs_ex(q): bool = LET addr = rs(q`id_s`instr) IN syn1_id_need_rs(q) AND NOT syn1_dep_ex_dst(q)(addr) AND NOT syn1_dep_mem_dst(q)(addr)
-          AND NOT syn1_dep_wb_dst(q)(addr) IMPLIES syn1_mux_id_rs(q) = abs_id_rs(q)
 
 Reachable?(q) : bool = Reachable?_mem_rt_mem(q) AND Reachable?_ex_rt_mem(q) AND Reachable?_ex_rs_ex(q) AND Reachable?_ex_rt_ex(q) AND Reachable?_id_rs_id(q) AND Reachable?_id_rt_id(q)
 
@@ -73,9 +80,9 @@ Inv_Init: THEOREM Init?(q) IMPLIES Reachable?(q)
 %|-  (case-analysis))
 %|- QED
 
-Inv_mem_rt: THEOREM Reachable?_ex_rt_mem(q) IMPLIES Reachable?_mem_rt_mem(I_step(q))
+Inv_mem_rt_mem: THEOREM Reachable?_ex_rt_mem(q) IMPLIES Reachable?_mem_rt_mem(I_step(q))
 
-%|- Inv_mem_rt : PROOF
+%|- Inv_mem_rt_mem : PROOF
 %|- (then (skosimp) (impl-invs) (abs-rewrites) (assert) (flatten)
 %|-  (assert)
 %|-  (expand syn1_mux_mem_rt) (assert)
@@ -89,7 +96,7 @@ Inv_mem_rt: THEOREM Reachable?_ex_rt_mem(q) IMPLIES Reachable?_mem_rt_mem(I_step
 
 
 % 可以工作的版本，有点长
-%|- Inv_mem_rt : PROOF
+%|- Inv_mem_rt_mem : PROOF
 %|- (then (skosimp) (auto-rewrite-theory implementation_invariants)
 %|-  (assert) (flatten) (expand syn1_mux_mem_rt) (expand abs_mem_rt)
 %|-  (spread (case-analysis)
@@ -116,16 +123,28 @@ Inv_mem_rt: THEOREM Reachable?_ex_rt_mem(q) IMPLIES Reachable?_mem_rt_mem(I_step
 
 
 
-Inv_ex_rs: THEOREM Reachable?_ex_rs_ex(I_step(q))
-Inv_ex_rt: THEOREM Reachable?_ex_rt_ex(I_step(q))
+Inv_ex_rs_ex: THEOREM Reachable?_ex_rs_ex(I_step(q))
+Inv_ex_rt_ex: THEOREM Reachable?_ex_rt_ex(I_step(q))
 
-%|- Inv_ex_* : PROOF
+%|- Inv_ex_*_ex : PROOF
 %|- (then (skosimp) (impl-invs) (abs-rewrites) (assert) (flatten)
 %|-  (expand syn1_mux_ex_$1) (assert) (case-analysis) (expand I_step (3))
 %|-  (assert) (expand syn1_mux_id_$1) (assert) (case-analysis)
 %|-  (expand rf_get_output) (propax))
 %|- QED
 
+
+Inv_ex_rt_mem: THEOREM Reachable?_ex_rt_mem(I_step(q))
+
+%|- Inv_ex_rt_mem : PROOF
+%|- (then (skosimp) (impl-invs) (abs-rewrites) (assert) (flatten)
+%|-  (expand I_step (3)) (assert) (expand syn1_mux_id_rt) (assert)
+%|-  (case-analysis) (expand rf_get_output) (propax))
+%|- QED
+
+Inv_id_rs_id: THEOREM Reachable?_id_rs_id(q)
+
+Inv_id_rt_id: THEOREM Reachable?_id_rt_id(I_step(q))
 
 
 END implementation_invariants

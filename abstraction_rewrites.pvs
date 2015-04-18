@@ -127,9 +127,42 @@ Rewrite_dec_id_4: LEMMA impl_dec_id(Complete_till_IF_ID(q)) = impl_dec_id(q)
 
 
 %|- Rewrite_dec_*_* : PROOF
+%|- Rewrite_*_dst_* : PROOF
 %|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites )
 %|-  (auto-rewrite-theory implementation_state_1) (assert))
 %|- QED
+
+Rewrite_wb_dst_1: LEMMA impl_wb_dst(Complete_till_MEM_WB(q)) = impl_wb_dst(q)
+
+Rewrite_wb_dst_2: LEMMA impl_wb_dst(Complete_till_EX_MEM(q)) = impl_wb_dst(q)
+
+Rewrite_wb_dst_3: LEMMA impl_wb_dst(Complete_till_ID_EX(q)) = impl_wb_dst(q)
+
+Rewrite_wb_dst_4: LEMMA impl_wb_dst(Complete_till_IF_ID(q)) = impl_wb_dst(q)
+
+Rewrite_mem_dst_1: LEMMA impl_mem_dst(Complete_till_MEM_WB(q)) = impl_mem_dst(q)
+
+Rewrite_mem_dst_2: LEMMA impl_mem_dst(Complete_till_EX_MEM(q)) = impl_mem_dst(q)
+
+Rewrite_mem_dst_3: LEMMA impl_mem_dst(Complete_till_ID_EX(q)) = impl_mem_dst(q)
+
+Rewrite_mem_dst_4: LEMMA impl_mem_dst(Complete_till_IF_ID(q)) = impl_mem_dst(q)
+
+Rewrite_ex_dst_1: LEMMA impl_ex_dst(Complete_till_MEM_WB(q)) = impl_ex_dst(q)
+
+Rewrite_ex_dst_2: LEMMA impl_ex_dst(Complete_till_EX_MEM(q)) = impl_ex_dst(q)
+
+Rewrite_ex_dst_3: LEMMA impl_ex_dst(Complete_till_ID_EX(q)) = impl_ex_dst(q)
+
+Rewrite_ex_dst_4: LEMMA impl_ex_dst(Complete_till_IF_ID(q)) = impl_ex_dst(q)
+
+Rewrite_id_dst_1: LEMMA impl_id_dst(Complete_till_MEM_WB(q)) = impl_id_dst(q)
+
+Rewrite_id_dst_2: LEMMA impl_id_dst(Complete_till_EX_MEM(q)) = impl_id_dst(q)
+
+Rewrite_id_dst_3: LEMMA impl_id_dst(Complete_till_ID_EX(q)) = impl_id_dst(q)
+
+Rewrite_id_dst_4: LEMMA impl_id_dst(Complete_till_IF_ID(q)) = impl_id_dst(q)
 
 
 
