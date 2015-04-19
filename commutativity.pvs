@@ -89,7 +89,7 @@ VC2_dmem: LEMMA I_step(q)`a_s`dmem = Complete_till_EX_MEM(q)`a_s`dmem
 VC2_pc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES  I_step(q)`a_s`pc = Complete_till_EX_MEM(q)`a_s`pc
 VC2_epc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`a_s`epc = Complete_till_EX_MEM(q)`a_s`epc
 VC2_llflag_1: LEMMA I_step(q)`a_s`llflag = Complete_till_EX_MEM(q)`a_s`llflag
-
+VC2_llflag_2: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES NOT Complete_till_EX_MEM(q)`a_s`llflag
 %|- VC2_pc_1 : PROOF
 %|- VC2_epc_1 : PROOF
 %|- VC2_llflag_1: PROOF
@@ -113,6 +113,26 @@ VC2_epc_2: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_EX_MEM(q)
 % 引理
 VC_src1_1: LEMMA syn1_ex_need_rs_ex(q) IMPLIES  i1s_src1(q) = abs_ex_src1(Complete_till_EX_MEM(q))
 VC_src1_2: LEMMA syn1_ex_need_rt_ex(q) IMPLIES  i1s_src1(q) = abs_ex_src1(Complete_till_EX_MEM(q))
+
+%|- VC_src1_2 : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand i1s_src1) (expand abs_ex_src1)
+%|-  (assert) (expand src1_mux) (assert) (lift-if 1) (copy -1)
+%|-  (expand syn1_ex_need_rt_ex (-1) 1) (flatten)
+%|-  (spread (split -2)
+%|-   ((then (assert) (typepred q!1) (assert))
+%|-    (spread (case "syn1_ex_need_rs_ex(q!1)")
+%|-     ((then (assert) (typepred q!1) (assert) (flatten) (case-analysis))
+%|-      (then (expand impl_dec_ex) (expand syn1_ex_need_rs_ex) (assert)
+%|-       (expand impl_dec_ex) (auto-rewrite-theory decoder_props)
+%|-       (case-analysis) (hide-all-but (-1 -5))
+%|-       (expand syn1_ex_need_rt_ex) (flatten)
+%|-       (spread (split -2)
+%|-        ((then (assert) (expand decoder) (assert) (expand impl_dec_ex)
+%|-          (auto-rewrite-theory instruction_decoder) (split-abs-opcode))
+%|-         (then (expand decoder) (expand impl_dec_ex) (assert)
+%|-          (expand decoder) (assert) (expand decode_sel_b)
+%|-          (case-analysis) (expand alu_r?) (propax))))))))))
+%|- QED
 
 
 %|- VC_src1_1[rs] : PROOF
@@ -214,18 +234,91 @@ VC3_rf: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_
 %|-       (then (expand rf_update) (assert))))))))
 %|- QED
 
-VC3_Squash: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Squash_rest?_till_EX_MEM(I_step(q)) = Squash_rest?_till_ID_EX(q)
+%VC3_Squash_1: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Squash_rest?_till_EX_MEM(I_step(q)) = Squash_rest?_till_ID_EX(q)
+VC3_Squash_1: LEMMA Squash_rest?_till_ID_EX(q) = ( Squash_rest?_till_EX_MEM(q) OR Squash_rest?_till_EX_MEM(I_step(q)) ) 
+VC3_Squash_ex_bubble:  LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`ex_s`state = bubble
+VC3_Squash_mem_bubble: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`mem_s`state = bubble
+%VC3_Squash_3: LEMMA Squash_rest?_till_EX_MEM(I_step(q)) IMPLIES Squash_rest?_till_ID_EX(q)
+%VC3_Squash_4: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Squash_rest?_till_ID_EX(q)
 
-%|- VC3_Squash : PROOF
+%|- VC3_Squash_1 : PROOF
 %|- (then (skosimp) (expand Squash_rest?_till_ID_EX) (assert)
 %|-  (expand Squash_rest?_ID_EX) (expand Squash_rest?_till_EX_MEM) (assert)
 %|-  (comm-rewrites) (assert) (expand I_step) (assert) (case-analysis))
 %|- QED
 
+%|- VC3_Squash_*_bubble : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Squash_rest?_till_EX_MEM)
+%|-  (expand I_step) (assert))
+%|- QED
+
+%|- VC3_Squash_3 : PROOF
+%|- VC3_Squash_4 : PROOF
+%|- (then (skosimp) (comm-rewrites)
+%|-  (spread (case "Squash_rest?_till_EX_MEM(q!1)")
+%|-   ((then (assert) (expand Squash_rest?_till_ID_EX) (propax)) (assert))))
+%|- QED
+
+
+
+
 %VC3_pc_1 : LEMMA NOT Squash_rest?_till_EX_MEM(q) AND Squash_rest?_till_ID_EX(q) IMPLIES Complete_till_EX_MEM(I_step(q))`a_s`pc = Complete_till_ID_EX(q)`a_s`pc 
 %% ???
 
+VC3_llflag: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`llflag = Complete_till_ID_EX(q)`a_s`llflag
+
+% 比较有意思。。。
+%|- VC3_llflag : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_EX_MEM)
+%|-  (expand Complete_till_ID_EX) (assert) (expand I_step) (assert)
+%|-  (spread (case-analysis)
+%|-   ((then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Squash_rest?_till_EX_MEM) (assert))
+%|-    (then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Complete_till_EX_MEM) (assert))
+%|-    (then (expand Squash_rest?_till_EX_MEM) (assert))
+%|-    (then (expand Squash_rest?_till_EX_MEM) (assert))
+%|-    (then (expand Squash_rest?_till_EX_MEM) (assert)))))
+%|- QED
+
+
+
+VC_id_rs: LEMMA abs_ex_rs(Complete_till_EX_MEM(I_step(q))) = abs_id_rs(Complete_till_ID_EX(q))
+VC_id_rt: LEMMA abs_ex_rt(Complete_till_EX_MEM(I_step(q))) = abs_id_rt(Complete_till_ID_EX(q))
+
+%|- VC_id_* : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand abs_ex_$1) (expand abs_id_$1)
+%|-  (assert))
+%|- QED
+
+VC_src1_3: LEMMA abs_ex_src1(Complete_till_EX_MEM(I_step(q))) = abs_id_src1(Complete_till_ID_EX(q))
+VC_src2_3: LEMMA abs_ex_src2(Complete_till_EX_MEM(I_step(q))) = abs_id_src2(Complete_till_ID_EX(q))
+
+%|- VC_src*_3 : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand abs_ex_src$1)
+%|-  (expand abs_id_src$1) (expand src$1_mux)  (assert)
+%|-  (case-analysis))
+%|- QED
+
+
+
 VC4_dmem_case_1: LEMMA NOT syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
+
+%|- VC4_dmem_case_1 : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_ID_EX)
+%|-  (expand Complete_till_IF_ID) (assert) (auto-rewrite! VC3_Squash_1)
+%|-  (spread (case-analysis)
+%|-   ((then (expand abs_ex_dmem_wen) (assert) (expand dmem_update)
+%|-     (propax))
+%|-    (then (expand abs_ex_dmem_wen) (assert) (postpone)))))
+%|- QED
+
 
 
 
