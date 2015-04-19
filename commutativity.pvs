@@ -267,24 +267,10 @@ VC3_Squash_mem_bubble: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`mem_s
 
 VC3_llflag: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`llflag = Complete_till_ID_EX(q)`a_s`llflag
 
-% 比较有意思。。。
 %|- VC3_llflag : PROOF
-%|- (then (skosimp) (comm-rewrites) (expand Complete_till_EX_MEM)
-%|-  (expand Complete_till_ID_EX) (assert) (expand I_step) (assert)
-%|-  (spread (case-analysis)
-%|-   ((then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Squash_rest?_till_EX_MEM) (assert))
-%|-    (then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Complete_till_EX_MEM) (assert))
-%|-    (then (expand Squash_rest?_till_EX_MEM) (assert))
-%|-    (then (expand Squash_rest?_till_EX_MEM) (assert))
-%|-    (then (expand Squash_rest?_till_EX_MEM) (assert)))))
+%|- (then (skosimp) (expand Complete_till_EX_MEM)
+%|-  (expand Complete_till_ID_EX) (comm-rewrites) (assert)
+%|-  (then (case-analysis) (expand I_step) (expand Squash_rest?_till_EX_MEM) (assert) (case-analysis)))
 %|- QED
 
 
