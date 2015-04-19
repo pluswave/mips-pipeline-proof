@@ -55,7 +55,8 @@ Rewrite_ex_selb_not_rt_1: LEMMA impl_dec_ex(q)`store? IMPLIES impl_dec_ex(q)`sel
 Rewrite_ex_selb_not_rt_2: LEMMA impl_dec_ex(q)`load? IMPLIES impl_dec_ex(q)`selb /= rt
 Rewrite_ex_store_not_ov: LEMMA impl_dec_ex(q)`store? IMPLIES NOT impl_dec_ex(q)`checkov?
 Rewrite_ex_load_not_ov: LEMMA impl_dec_ex(q)`load? IMPLIES NOT impl_dec_ex(q)`checkov?
-
+Rewrite_ex_checkov_aluout: LEMMA impl_dec_ex(q)`checkov? IMPLIES impl_dec_ex(q)`wbsrc = aluout
+Rewrite_ex_store_not_wb: LEMMA impl_dec_ex(q)`store? IMPLIES NOT impl_dec_ex(q)`wb?
 %|- Rewrite_ex_* : PROOF
 %|- (then (skosimp) (impl-defs) (assert)
 %|-  (auto-rewrite-theory decoder_props) (assert))
