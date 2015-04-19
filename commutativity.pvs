@@ -236,6 +236,7 @@ VC3_rf: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_
 
 %VC3_Squash_1: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Squash_rest?_till_EX_MEM(I_step(q)) = Squash_rest?_till_ID_EX(q)
 VC3_Squash_1: LEMMA Squash_rest?_till_ID_EX(q) = ( Squash_rest?_till_EX_MEM(q) OR Squash_rest?_till_EX_MEM(I_step(q)) ) 
+VC3_Squash_id_bubble:  LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`id_s`state = bubble
 VC3_Squash_ex_bubble:  LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`ex_s`state = bubble
 VC3_Squash_mem_bubble: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`mem_s`state = bubble
 %VC3_Squash_3: LEMMA Squash_rest?_till_EX_MEM(I_step(q)) IMPLIES Squash_rest?_till_ID_EX(q)
@@ -259,6 +260,35 @@ VC3_Squash_mem_bubble: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`mem_s
 %|-   ((then (assert) (expand Squash_rest?_till_ID_EX) (propax)) (assert))))
 %|- QED
 
+
+Rewrite_squash_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES NOT Squash_rest?_till_EX_MEM(I_step(q))
+
+%|- Rewrite_squash_1 : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Squash_rest?_till_EX_MEM)
+%|-  (assert) (expand I_step) (assert))
+%|- QED
+
+Rewrite_squash_2: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES NOT Squash_rest?_till_ID_EX(I_step(q))
+
+%|- Rewrite_squash_2 : PROOF
+%|- (then (skosimp) (comm-rewrites) (assert)
+%|-  (expand Squash_rest?_till_EX_MEM) (assert) (expand I_step) (assert))
+%|- QED
+
+Rewrite_squash_3: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES NOT Squash_rest?_till_IF_ID(I_step(q))
+
+%|- Rewrite_squash_3 : PROOF
+%|- (then (skosimp) (comm-rewrites) (assert)
+%|-  (expand Squash_rest?_till_IF_ID) (assert) (copy -1)
+%|-  (expand Squash_rest?_till_EX_MEM (-1) 1) (assert)
+%|-  (spread (case-analysis)
+%|-   ((then (expand I_step) (assert)) (then (expand I_step (-3)) (assert))
+%|-    (then (expand I_step (-3)) (assert))
+%|-    (then (expand I_step (-3)) (assert))
+%|-    (then (expand I_step (-3)) (assert))
+%|-    (then (expand I_step (-3)) (assert))
+%|-    (then (expand I_step (-3)) (assert)))))
+%|- QED
 
 
 
@@ -292,54 +322,92 @@ VC_src2_3: LEMMA abs_ex_src2(Complete_till_EX_MEM(I_step(q))) = abs_id_src2(Comp
 %|-  (case-analysis))
 %|- QED
 
+VC_dmem_wen_id_ex: LEMMA NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_ID_EX(q) IMPLIES abs_ex_dmem_wen(Complete_till_EX_MEM(I_step(q))) = abs_id_dmem_wen(Complete_till_ID_EX(q))
+VC_rf_wen_id_ex:   LEMMA NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_ID_EX(q) IMPLIES abs_ex_rf_wen(Complete_till_EX_MEM(I_step(q))) = abs_id_rf_wen(Complete_till_ID_EX(q))
+%|- VC_*_wen_id_ex : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand abs_ex_$1_wen)
+%|-  (expand abs_id_$1_wen) (assert) (flatten)
+%|-  (expand Squash_rest?_till_EX_MEM) (assert) (expand I_step) (assert)
+%|-  (case-analysis))
+%|- QED
+
+VC_rf_wb_val_id_ex:   LEMMA NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_ID_EX(q) IMPLIES abs_ex_rf_wb_val(Complete_till_EX_MEM(I_step(q))) = abs_id_rf_wb_val(Complete_till_ID_EX(q))
+
+%|- VC_rf_wb_val_id_ex : PROOF
+%|- (then (skosimp) (comm-rewrites) (assert) (expand abs_ex_rf_wb_val)
+%|-  (expand abs_id_rf_wb_val) (assert))
+%|- QED
 
 
 VC4_dmem_case_1: LEMMA NOT syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
 
 %|- VC4_dmem_case_1 : PROOF
 %|- (then (skosimp) (comm-rewrites) (expand Complete_till_ID_EX)
-%|-  (expand Complete_till_IF_ID) (assert) (auto-rewrite! VC3_Squash_1)
-%|-  (spread (case-analysis)
-%|-   ((then (expand abs_ex_dmem_wen) (assert) (expand dmem_update)
-%|-     (propax))
-%|-    (then (expand abs_ex_dmem_wen) (assert) (postpone)))))
+%|-  (expand Complete_till_IF_ID) (assert) (case-analysis)
+%|-  (expand abs_ex_dmem_wen) (assert) (expand dmem_update) (propax))
 %|- QED
 
+VC4_rf_case_1: LEMMA NOT syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q))`a_s`rf = Complete_till_IF_ID(q)`a_s`rf
+
+%|- VC4_rf_case_1 : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_ID_EX)
+%|-  (expand Complete_till_IF_ID) (assert) (case-analysis)
+%|-  (expand abs_ex_rf_wen) (assert) (expand rf_update) (propax))
+%|- QED
+
+% VC_stall_bubble: LEMMA syn1_stall_issue(q) IMPLIES I_step(q)`ex_s`state = bubble % 循环重写？
 
 
+VC4_dmem_case_2: LEMMA syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q))`a_s`dmem = Complete_till_ID_EX(q)`a_s`dmem
+VC4_rf_case_2: LEMMA syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_s`rf
+
+
+%|- VC4_*_case_2 : PROOF
+%|- (then (skosimp) (comm-rewrites)
+%|- (assert) (case-analysis))
+%|- QED
+
+%|- VC4_*_case_2 : PROOF
+%|- (then (skosimp) (comm-rewrites)
+%|-  (spread (case "I_step(q!1)`ex_s`state = bubble")
+%|-   ((assert)
+%|-    (then (hide 2) (expand I_step) (assert) (case-analysis) (hide +)
+%|-     (auto-rewrite-theory implementation_state_1_sync :always? T)
+%|-     (assert) (case-analysis)))))
+%|- QED
 
 
 
 % Level : 3个case * 5 个状态 = 15个case 
 
-comm_rf_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = Complete_till_IF_ID(q)`a_s`rf
-comm_dmem_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
-comm_pc_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = Complete_till_IF_ID(q)`a_s`pc
-comm_epc_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = Complete_till_IF_ID(q)`a_s`epc
-comm_llflag_case1: CLAIM syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = Complete_till_IF_ID(q)`a_s`llflag
+comm_rf_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = Complete_till_IF_ID(q)`a_s`rf
+comm_dmem_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
+comm_pc_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = Complete_till_IF_ID(q)`a_s`pc
+comm_epc_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = Complete_till_IF_ID(q)`a_s`epc
+comm_llflag_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = Complete_till_IF_ID(q)`a_s`llflag
 
-comm_rf_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = Complete_till_IF_ID(q)`a_s`rf
-comm_dmem_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
-comm_pc_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = Complete_till_IF_ID(q)`a_s`pc
-comm_epc_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = Complete_till_IF_ID(q)`a_s`epc
-comm_llflag_case2: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = Complete_till_IF_ID(q)`a_s`llflag
+comm_rf_case2: CLAIM NOT Squash_rest?_till_IF_ID(q) AND syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = Complete_till_IF_ID(q)`a_s`rf
+comm_dmem_case2: CLAIM NOT Squash_rest?_till_IF_ID(q) AND syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
+comm_pc_case2: CLAIM NOT Squash_rest?_till_IF_ID(q) AND syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = Complete_till_IF_ID(q)`a_s`pc
+comm_epc_case2: CLAIM NOT Squash_rest?_till_IF_ID(q) AND syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = Complete_till_IF_ID(q)`a_s`epc
+comm_llflag_case2: CLAIM NOT Squash_rest?_till_IF_ID(q) AND syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = Complete_till_IF_ID(q)`a_s`llflag
 
-comm_rf_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = A_step(Complete_till_IF_ID(q)`a_s)`rf
-comm_dmem_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = A_step(Complete_till_IF_ID(q)`a_s)`dmem
-comm_pc_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = A_step(Complete_till_IF_ID(q)`a_s)`pc
-comm_epc_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = A_step(Complete_till_IF_ID(q)`a_s)`epc
-comm_llflag_case3: CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = A_step(Complete_till_IF_ID(q)`a_s)`llflag
+comm_rf_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = A_step(Complete_till_IF_ID(q)`a_s)`rf
+comm_dmem_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = A_step(Complete_till_IF_ID(q)`a_s)`dmem
+comm_pc_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = A_step(Complete_till_IF_ID(q)`a_s)`pc
+comm_epc_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = A_step(Complete_till_IF_ID(q)`a_s)`epc
+comm_llflag_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = A_step(Complete_till_IF_ID(q)`a_s)`llflag
 
 comm_imem: CLAIM A_step(Complete_till_IF_ID(q)`a_s)`imem = q`a_s`imem
 
 % Level:  3个主要case
 
-stall_prop: CLAIM syn1_stall_issue(q) IMPLIES ABS(I_step(q)) = ABS(q)
+stall_prop: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES ABS(I_step(q)) = ABS(q)
 
 
-squash_prop: CLAIM NOT syn1_stall_issue(q) AND Squash_rest?_till_IF_ID(q) IMPLIES ABS(I_step(q)) = ABS(q)
+squash_prop: CLAIM NOT Squash_rest?_till_IF_ID(q) AND syn1_stall_issue(q) IMPLIES ABS(I_step(q)) = ABS(q)
 
-sync1_prop:  CLAIM NOT syn1_stall_issue(q) AND NOT Squash_rest?_till_IF_ID(q) IMPLIES ABS(I_step(q)) = A_step(ABS(q))
+sync1_prop:  CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES ABS(I_step(q)) = A_step(ABS(q))
 
 %|- sync1_prop : PROOF
 %|- (then (skosimp) (expand ABS) (expand Projection) (assert)

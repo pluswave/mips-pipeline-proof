@@ -79,7 +79,9 @@ i1s_next_ex_state(q): stage_state = LET dec=impl_dec_id(q) IN
 
 
 i1s_next_id_state(q): stage_state = 
-             IF NOT ifu_get_addr_valid(i1s_ifu(q)) THEN exception
+             IF q`mem_s`state = exception THEN bubble
+             ELSIF syn1_stall_issue(q) THEN normal
+             ELSIF NOT ifu_get_addr_valid(i1s_ifu(q)) THEN exception
              ELSE normal ENDIF
 
 i1s_get_instr(q): bvec[32] = ifu_get_instr(i1s_ifu(q))

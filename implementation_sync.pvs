@@ -12,10 +12,10 @@ syn1_id_need_rt_id(q): bool = LET dec = impl_dec_id(q) IN q`id_s`state = normal 
 
 % T_need  = 1 ID stage need rs Next step
 syn1_id_need_rs_ex(q): bool = LET dec=impl_dec_id(q) IN 
-                           q`id_s`state = normal AND NOT dec`beq? AND NOT dec`bne? AND NOT dec`jr? AND dec`sela = rs 
+                           q`id_s`state = normal AND NOT dec`invalid? AND NOT dec`beq? AND NOT dec`bne? AND NOT dec`jr? AND dec`sela = rs 
 
 syn1_id_need_rt_ex(q): bool = LET dec=impl_dec_id(q) IN 
-                           q`id_s`state = normal AND NOT dec`beq? AND NOT dec`bne? AND (dec`sela = rt OR  dec`selb = rt ) 
+                           q`id_s`state = normal AND NOT dec`invalid? AND NOT dec`beq? AND NOT dec`bne? AND (dec`sela = rt OR  dec`selb = rt ) 
                                     
 % T_need = 2 ID stage need rt MEM stage
 syn1_id_need_rt_mem(q): bool = LET dec=impl_dec_id(q) IN 

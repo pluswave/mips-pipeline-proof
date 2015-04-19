@@ -45,17 +45,19 @@ i1t_next_id_ex(q) : state_id_ex =
 
 % 取指令阶段
 
-i1t_next_if_id(q): state_if_id =
-    (# state := IF syn1_stall_issue(q) THEN q`id_s`state ELSE i1s_next_id_state(q) ENDIF, 
-       instr := IF syn1_stall_issue(q) THEN q`id_s`instr ELSE i1s_get_instr(q) ENDIF ,
-       pc    := IF syn1_stall_issue(q) THEN q`id_s`pc ELSE q`a_s`pc ENDIF
-    #)
-
-
 i1t_next_ifu(q): ifu = 
   ifu_update( (# npc := i1s_next_pc(q),
                  npc_valid? := i1s_npc_valid(q)
               #), i1s_ifu(q) )
+
+
+i1t_next_if_id(q): state_if_id =
+    (# state := i1s_next_id_state(q), 
+       instr := IF syn1_stall_issue(q) THEN q`id_s`instr ELSE i1s_get_instr(q) ENDIF ,
+       pc    := i1t_next_ifu(q)`pc
+    #)
+
+
 
  
 I_step(q): state_I = 

@@ -77,6 +77,24 @@ Rewrite_Complete_till_IF_ID_bubble: LEMMA q`id_s`state = bubble IMPLIES Complete
 
 
 
+% Squash 将压缩Complete_till_阶段
+Squash_rest_till_EX_MEM_prop: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_ID_EX(q) = Complete_till_EX_MEM(q)
+
+%|- Squash_rest_till_EX_MEM_prop : PROOF
+%|- (then (skosimp)
+%|-  (expand Complete_till_ID_EX) (expand Complete_ID_EX) (assert))
+%|- QED
+
+
+Squash_rest_till_ID_EX_prop: LEMMA Squash_rest?_till_ID_EX(q) IMPLIES Complete_till_IF_ID(q) = Complete_till_ID_EX(q)
+
+%|- Squash_rest_till_ID_EX_prop : PROOF
+%|- (then (skosimp) (expand Complete_till_IF_ID) (expand Complete_IF_ID)
+%|-  (assert))
+%|- QED
+
+
+
 
 projection: THEOREM Flushed?(q) IMPLIES ABS(q) = Projection(q)
 

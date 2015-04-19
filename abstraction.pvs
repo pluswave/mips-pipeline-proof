@@ -138,10 +138,12 @@ abs_id_dmem_input_read(q): dmem_input_read = LET dec = impl_dec_id(q) IN
 
 abs_id_dmem_load_val(q): bvec[32] = dmem_get_output( abs_id_dmem_input_read(q), q`a_s`dmem)
 
+abs_id_dmem_wen(q) : bool = LET dec = impl_dec_id(q) IN q`id_s`state = normal AND dec`store? 
+           AND dmem_addr_valid?(abs_id_aluout(q)`out) AND (dec`atom? IMPLIES q`a_s`llflag )
+
 abs_id_dmem_input_write(q): dmem_input_write = LET dec = impl_dec_id(q) IN
    (# addr := abs_id_aluout(q)`out, mwidth := dec`mwidth,
-      wen := q`id_s`state = normal AND dec`store? 
-             AND (dec`atom? IMPLIES q`a_s`llflag ),
+      wen := abs_id_dmem_wen(q),
       value := abs_id_rt(q) #)
 
 abs_id_rf_wb_val(q): bvec[32] = 
@@ -149,13 +151,16 @@ abs_id_rf_wb_val(q): bvec[32] =
                  q`id_s`pc + 4,  abs_id_dmem_load_val(q),
                  q`id_s`instr )
 
-abs_id_rf_input_write(q): rf_input_write = 
-   LET dec=impl_dec_id(q) IN
-   (# addr := impl_id_dst(q), value := abs_id_rf_wb_val(q),
-      en := q`id_s`state = normal AND dec`wb? AND
+abs_id_rf_wen(q): bool =  LET dec=impl_dec_id(q) IN
+q`id_s`state = normal AND dec`wb? AND
           ( dec`checkov? IMPLIES NOT abs_id_aluout(q)`ov )
       AND ( dec`load? IMPLIES 
-        dmem_addr_valid?(abs_id_aluout(q)`out) ) #)
+        dmem_addr_valid?(abs_id_aluout(q)`out) )
+
+
+abs_id_rf_input_write(q): rf_input_write = 
+   (# addr := impl_id_dst(q), value := abs_id_rf_wb_val(q),
+      en := abs_id_rf_wen(q) #)
 
 abs_id_exception(q) : bool = LET dec = impl_dec_id(q) IN
    q`id_s`state = exception OR (q`id_s`state = normal AND 

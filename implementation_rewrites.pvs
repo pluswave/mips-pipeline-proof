@@ -22,7 +22,10 @@ Rewrite_pc_mem: LEMMA (I_step(q))`mem_s`pc = q`ex_s`pc
 
 
 
-%|- Rewrite_* : PROOF
+%|- Rewrite_dec_* : PROOF
+%|- Rewrite_dst_* : PROOF
+%|- Rewrite_instr* : PROOF
+%|- Rewrite_pc*: PROOF
 %|- (then (skosimp) (auto-rewrite-theory implementation_rewrites_1) (impl-defs) (assert) (expand I_step) (assert))
 %|- QED
 
@@ -59,7 +62,14 @@ Rewrite_ex_checkov_aluout: LEMMA impl_dec_ex(q)`checkov? IMPLIES impl_dec_ex(q)`
 Rewrite_ex_checkov_wb:     LEMMA impl_dec_ex(q)`checkov? IMPLIES impl_dec_ex(q)`wb?
 Rewrite_ex_store_not_wb: LEMMA impl_dec_ex(q)`store? IMPLIES NOT impl_dec_ex(q)`wb?
 Rewrite_ex_load_wbsrc: LEMMA load?(impl_dec_ex(q)`wbsrc) =  impl_dec_ex(q)`load?
+Rewrite_id_store_not_invalid: LEMMA impl_dec_id(q)`store? IMPLIES NOT impl_dec_id(q)`invalid?
+Rewrite_id_wb_not_invalid: LEMMA impl_dec_id(q)`wb? IMPLIES NOT impl_dec_id(q)`invalid?
+Rewrite_id_beq_not_invalid: LEMMA impl_dec_id(q)`beq? IMPLIES NOT impl_dec_id(q)`invalid?
+Rewrite_id_bne_not_invalid: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`invalid?
+Rewrite_id_jr_not_invalid: LEMMA impl_dec_id(q)`jr? IMPLIES NOT impl_dec_id(q)`invalid?
+
 %|- Rewrite_ex_* : PROOF
+%|- Rewrite_id_* : PROOF
 %|- (then (skosimp) (impl-defs) (assert)
 %|-  (auto-rewrite-theory decoder_props) (assert))
 %|- QED
@@ -76,10 +86,8 @@ Rewrite_ex_alu_wb_2: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl
 
 %|- Rewrite_ex_alu_wb_* : PROOF
 %|- (then (skosimp) (impl-defs) (assert)
-%|-  (auto-rewrite-theory decoder_props)
-%|-  (auto-rewrite-theory instruction_decoder) (assert) (case-analysis))
+%|-  (auto-rewrite-theory decoder_props) (assert) (case-analysis))
 %|- QED
-
 
 
 END implementation_rewrites_1
