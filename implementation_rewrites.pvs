@@ -56,6 +56,7 @@ Rewrite_ex_selb_not_rt_2: LEMMA impl_dec_ex(q)`load? IMPLIES impl_dec_ex(q)`selb
 Rewrite_ex_store_not_ov: LEMMA impl_dec_ex(q)`store? IMPLIES NOT impl_dec_ex(q)`checkov?
 Rewrite_ex_load_not_ov: LEMMA impl_dec_ex(q)`load? IMPLIES NOT impl_dec_ex(q)`checkov?
 Rewrite_ex_checkov_aluout: LEMMA impl_dec_ex(q)`checkov? IMPLIES impl_dec_ex(q)`wbsrc = aluout
+Rewrite_ex_checkov_wb:     LEMMA impl_dec_ex(q)`checkov? IMPLIES impl_dec_ex(q)`wb?
 Rewrite_ex_store_not_wb: LEMMA impl_dec_ex(q)`store? IMPLIES NOT impl_dec_ex(q)`wb?
 Rewrite_ex_load_wbsrc: LEMMA load?(impl_dec_ex(q)`wbsrc) =  impl_dec_ex(q)`load?
 %|- Rewrite_ex_* : PROOF

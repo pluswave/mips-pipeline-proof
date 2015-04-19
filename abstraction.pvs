@@ -88,9 +88,9 @@ abs_ex_rf_input_write(q): rf_input_write =
 
 abs_ex_exception(q) : bool = LET dec = impl_dec_ex(q) IN
    q`ex_s`state = exception OR (q`ex_s`state = normal AND 
-    (dec`checkov? IMPLIES NOT abs_ex_aluout(q)`ov ) AND
-    (dec`load? OR dec`store? IMPLIES 
-      dmem_addr_valid?(abs_ex_aluout(q)`out)))
+    (( dec`checkov? AND abs_ex_aluout(q)`ov ) OR
+    ( (dec`load? OR dec`store?) AND 
+      NOT dmem_addr_valid?(abs_ex_aluout(q)`out))))
 
 Squash_rest?_ID_EX(q): bool = abs_ex_exception(q)
 

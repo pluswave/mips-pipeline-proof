@@ -223,6 +223,16 @@ VC3_rf: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_
 %|-       (then (expand rf_update) (assert))))))))
 %|- QED
 
+VC3_Squash: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Squash_rest?_till_EX_MEM(I_step(q)) = Squash_rest?_till_ID_EX(q)
+
+%|- VC3_Squash : PROOF
+%|- (then (skosimp) (expand Squash_rest?_till_ID_EX) (assert)
+%|-  (expand Squash_rest?_ID_EX) (expand Squash_rest?_till_EX_MEM) (assert)
+%|-  (comm-rewrites) (assert) (expand I_step) (assert) (case-analysis))
+%|- QED
+
+
+
 
 % Level : 3个case * 5 个状态 = 15个case 
 
