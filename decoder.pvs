@@ -180,6 +180,7 @@ decoder_atom_2: LEMMA decoder(op)`atom? IMPLIES decoder(op)`load? OR decoder(op)
 
 decoder_checkov_aluout: LEMMA decoder(op)`checkov? IMPLIES decoder(op)`wbsrc = aluout
 
+
 decoder_load_sela: LEMMA decoder(op)`load? IMPLIES decoder(op)`sela = rs
 decoder_load_selb: LEMMA decoder(op)`load? IMPLIES decoder(op)`selb = sext
 decoder_store_sela: LEMMA decoder(op)`store? IMPLIES decoder(op)`sela = rs
