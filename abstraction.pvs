@@ -4,7 +4,7 @@ BEGIN
 IMPORTING implementation_state_1
 
 q: VAR state_I
-
+kill?: VAR bool
 % 写回阶段
 
 action_MEM_WB(q): state_A = q`a_s WITH [ (rf) := rf_update( impl_rf_input_write(q), q`a_s`rf ) ]
@@ -116,10 +116,10 @@ action_ID_EX(q): state_A = q`a_s WITH
        ENDIF 
       ]
 
-Complete_ID_EX(q): state_I = IF Squash_rest?_till_EX_MEM(q) THEN q
+Complete_ID_EX(q,kill?): state_I = IF kill? THEN q
       ELSE q WITH [ (a_s) := action_ID_EX(q) ] ENDIF
 
-Complete_till_ID_EX(q): state_I = Complete_ID_EX(Complete_till_EX_MEM(q))
+Complete_till_ID_EX(q): state_I = Complete_ID_EX(Complete_till_EX_MEM(q),Squash_rest?_till_EX_MEM(q))
 
 % 译码阶段
 
@@ -191,10 +191,10 @@ action_IF_ID(q): state_A = q`a_s WITH
          ELSE q`a_s`llflag  
       ENDIF ]
 
-Complete_IF_ID(q): state_I = IF Squash_rest?_till_ID_EX(q) THEN q 
+Complete_IF_ID(q, kill?): state_I = IF kill? THEN q 
      ELSE q WITH [ (a_s) := action_IF_ID(q) ] ENDIF
 
-Complete_till_IF_ID(q): state_I = Complete_IF_ID( Complete_till_ID_EX(q) )
+Complete_till_IF_ID(q): state_I = Complete_IF_ID( Complete_till_ID_EX(q),Squash_rest?_till_ID_EX(q) )
 
 ABS(q) : state_A = Projection( Complete_till_IF_ID(q) )        
 

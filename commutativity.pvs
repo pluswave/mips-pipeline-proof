@@ -231,6 +231,12 @@ VC3_Squash: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Squash_rest?_till_EX_M
 %|-  (comm-rewrites) (assert) (expand I_step) (assert) (case-analysis))
 %|- QED
 
+%VC3_pc_1 : LEMMA NOT Squash_rest?_till_EX_MEM(q) AND Squash_rest?_till_ID_EX(q) IMPLIES Complete_till_EX_MEM(I_step(q))`a_s`pc = Complete_till_ID_EX(q)`a_s`pc 
+%% ???
+
+VC4_dmem_case_1: LEMMA NOT syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
+
+
 
 
 
