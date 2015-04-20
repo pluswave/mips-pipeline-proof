@@ -89,7 +89,7 @@ Rewrite_ex_alu_wb_2: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl
 %|-  (auto-rewrite-theory decoder_props) (assert) (case-analysis))
 %|- QED
 
-
+% 有没有更好的办法避免手动重写？
 Rewrite_syn1_id_1: LEMMA q`id_s`state = normal AND ( impl_dec_id(q)`beq? OR impl_dec_id(q)`bne? OR impl_dec_id(q)`jr? ) IMPLIES syn1_id_need_rs_id(q)
 
 Rewrite_syn1_id_2: LEMMA q`id_s`state = normal AND ( impl_dec_id(q)`beq? OR impl_dec_id(q)`bne? ) IMPLIES syn1_id_need_rt_id(q)
