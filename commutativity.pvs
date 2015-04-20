@@ -387,7 +387,25 @@ VC_id_exception: LEMMA NOT Squash_rest?_till_EX_MEM(q) AND NOT Squash_rest?_till
 %|-  (assert) (case-analysis))
 %|- QED
 
-VC_id_branch: LEMMA NOT Squash_rest?_till_EX_MEM(q) AND NOT Squash_rest?_till_ID_EX(q) AND abs_id_branch_taken(Complete_till_ID_EX(q)) AND NOT syn1_stall_issue(q) IMPLIES I_step(q)`id_s`state = bubble
+VC_id_branch: LEMMA NOT Squash_rest?_till_EX_MEM(q) AND NOT Squash_rest?_till_ID_EX(q) AND abs_id_branch_taken?(Complete_till_ID_EX(q)) AND NOT syn1_stall_issue(q) IMPLIES I_step(q)`id_s`state = bubble
+
+%|- VC_id_branch : PROOF
+%|- (then (skosimp) (expand I_step) (comm-rewrites) (assert)
+%|-  (expand abs_id_branch_taken?) (assert)
+%|-  (expand Squash_rest?_till_EX_MEM (1)) (assert) (flatten) (assert)
+%|-  (use Inv_id_rs_id) (use Inv_id_rt_id) (expand Reachable?_id_rs_id)
+%|-  (expand Reachable?_id_rt_id) (use Rewrite_syn1_id_1)
+%|-  (use Rewrite_syn1_id_2) (assert) (case-analysis))
+%|- QED
+
+VC_id_jmp: LEMMA NOT Squash_rest?_till_EX_MEM(q) AND NOT Squash_rest?_till_ID_EX(q) AND abs_id_jmp?(Complete_till_ID_EX(q)) AND NOT syn1_stall_issue(q) IMPLIES I_step(q)`id_s`state = bubble
+
+%|- VC_id_jmp : PROOF
+%|- (then (skosimp) (expand I_step) (comm-rewrites) (assert)
+%|-  (expand Squash_rest?_till_EX_MEM (1)) (assert) (expand abs_id_jmp?)
+%|-  (assert) (case-analysis))
+%|- QED
+
 
 % Level : 3个case * 5 个状态 = 15个case 
 

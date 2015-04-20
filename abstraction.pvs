@@ -170,12 +170,17 @@ abs_id_exception(q) : bool = LET dec = impl_dec_id(q) IN
       OR dec`invalid? 
     ))
 
-abs_id_branch_taken(q): bool = LET dec=impl_dec_id(q) IN
+abs_id_branch_taken?(q): bool = LET dec=impl_dec_id(q) IN
     q`id_s`state = normal AND
     ( ( dec`beq? AND abs_id_rs(q) = abs_id_rt(q) ) 
     OR( dec`bne? AND abs_id_rs(q) /= abs_id_rt(q) ) )
 
-Squash_rest?_IF_ID(q): bool = abs_id_exception(q) OR ( abs_id_branch_taken(q) )
+abs_id_jmp?(q): bool = LET dec=impl_dec_id(q) IN
+    q`id_s`state = normal AND
+    ( dec`jr? OR dec`jmp? )
+
+Squash_rest?_IF_ID(q): bool = LET dec=impl_dec_id(q) IN
+    abs_id_exception(q) OR abs_id_branch_taken?(q)  OR abs_id_jmp?(q)
 
 Squash_rest?_till_IF_ID(q): bool = Squash_rest?_till_ID_EX(q) OR 
     Squash_rest?_IF_ID(Complete_till_ID_EX(q) ) 
