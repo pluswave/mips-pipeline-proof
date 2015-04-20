@@ -362,6 +362,7 @@ VC4_dmem_case_2: LEMMA syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q)
 VC4_rf_case_2: LEMMA syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_s`rf
 
 
+
 %|- VC4_*_case_2 : PROOF
 %|- (then (skosimp) (comm-rewrites)
 %|- (assert) (case-analysis))
@@ -377,10 +378,28 @@ VC4_rf_case_2: LEMMA syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_step(q))`
 %|- QED
 
 
+VC_id_exception: LEMMA NOT Squash_rest?_till_EX_MEM(q) AND NOT Squash_rest?_till_ID_EX(q) AND abs_id_exception(Complete_till_ID_EX(q)) AND NOT syn1_stall_issue(q) IMPLIES Squash_rest?_till_ID_EX(I_step(q))
+
+%|- VC_id_exception : PROOF
+%|- (then (skosimp) (expand Squash_rest?_till_ID_EX (4) 1) (comm-rewrites)
+%|-  (assert) (flatten) (expand abs_id_exception) (assert)
+%|-  (expand I_step (4 5)) (assert) (expand Squash_rest?_till_EX_MEM)
+%|-  (assert) (case-analysis))
+%|- QED
+
+VC_id_branch: LEMMA NOT Squash_rest?_till_EX_MEM(q) AND NOT Squash_rest?_till_ID_EX(q) AND abs_id_branch_taken(Complete_till_ID_EX(q)) AND NOT syn1_stall_issue(q) IMPLIES I_step(q)`id_s`state = bubble
 
 % Level : 3个case * 5 个状态 = 15个case 
 
 comm_rf_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = Complete_till_IF_ID(q)`a_s`rf
+
+%|- comm_rf_case1 : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_IF_ID) (assert)
+%|-  (spread (case-analysis)
+%|-   ((postpone)
+%|-    (then (expand abs_id_rf_wen) (assert) (expand rf_update) (propax))
+%|-    (postpone))))
+%|- QED
 comm_dmem_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = Complete_till_IF_ID(q)`a_s`dmem
 comm_pc_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = Complete_till_IF_ID(q)`a_s`pc
 comm_epc_case1: CLAIM Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = Complete_till_IF_ID(q)`a_s`epc

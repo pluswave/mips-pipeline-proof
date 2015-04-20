@@ -12,6 +12,7 @@
 		       "Complete_till_ID_EX" "Complete_till_IF_ID" 
 		       "Squash_rest?_till_EX_MEM" "Squash_rest?_till_ID_EX" "Squash_rest?_till_IF_ID"
                        "abs_ex_rf_wen" "abs_ex_rf_wb_val" "abs_mem_rf_wen" "abs_id_rf_wen" "abs_id_rf_wb_val"
+                       "abs_id_exception" "abs_id_branch_taken"
                        ))
          "Most definitions from abstraction theory installed as rewrites"
 	 "Installing rewrite rules from abstraction  definitions")
