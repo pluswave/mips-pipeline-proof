@@ -76,6 +76,80 @@ IMPORTING specification_muxers
 a: VAR state_A
 
 
+spt_ifu(a): ifu = (# pc := a`pc, imem := a`imem #)
+
+spt_instr(a): instruction = ifu_get_output(spt_ifu(a))`ins
+
+spt_invalid_pc(a): bool = NOT ifu_get_output(spt_ifu(a))`addr_valid?
+
+spt_dec(a): decoder_signal = decoder( get_abs_opcode ( spt_instr (a )) )
+
+spt_rf_input_read(a): rf_input_read = (# addr_1 := rs( spt_instr (a)), addr_2 := rt ( spt_instr(a)) #)
+
+spt_rs(a): bvec[32] = rf_get_output( spt_rf_input_read(a), a`rf )`val_1
+
+spt_rt(a): bvec[32] = rf_get_output( spt_rf_input_read(a), a`rf )`val_2
+
+spt_pc4(a): bvec[32] = a`pc + 4
+
+spt_src1(a): bvec[32] = src1_mux( spt_dec(a), spt_rs(a), spt_rt(a) )
+
+spt_src2(a): bvec[32] = src2_mux( spt_dec(a), spt_rt(a), spt_instr(a) )
+
+spt_sext(a): bvec[32] = sign_extend[16](32) (short_immed_of ( spt_instr(a)) ) 
+
+spt_branch_pc(a): bvec[32] = spt_pc4(a) + spt_sext(a)
+
+spt_jmp_pc(a): bvec[32] = spt_pc4(a)^(31,28) o long_immed_of( spt_instr(a) ) o b00
+
+spt_aluout(a): alu_out = alu( spt_src1(a), spt_src2(a) , spt_dec(a)`aluop )
+
+spt_exception_overflow?(a): bool = NOT spt_invalid_pc(a) AND spt_dec(a)`checkov? AND spt_aluout(a)`ov
+
+spt_exception_dmem?(a): bool = NOT spt_invalid_pc(a) AND ( spt_dec(a)`load? OR spt_dec(a)`store? ) AND NOT dmem_addr_valid?( spt_aluout(a)`out )
+
+spt_exception_instr?(a): bool = spt_dec(a)`invalid?
+
+spt_dmem_wen(a): bool = spt_dec(a)`store? AND NOT spt_exception_dmem?(a) AND ( spt_dec(a)`atom? IMPLIES a`llflag )
+
+spt_dmem_input_read(a): dmem_input_read = LET dec = spt_dec(a) IN (# addr := spt_aluout(a)`out, mwidth := dec`mwidth, se := dec`loadse? #)
+
+spt_dmem_input_write(a): dmem_input_write = LET dec = spt_dec(a) IN
+               (# addr := spt_aluout(a)`out, mwidth := dec`mwidth, 
+                  wen := spt_dmem_wen(a), value := spt_rt(a) #)
+
+spt_dmem_val(a): bvec[32] = dmem_get_output( spt_dmem_input_read(a), a`dmem )
+
+spt_next_dmem(a): data_memory = dmem_update( spt_dmem_input_write(a), a`dmem )
+
+spt_rf_wb_val(a): bvec[32] = wb_val_mux(spt_dec(a), spt_aluout(a)`out, spt_pc4(a), spt_dmem_val(a), spt_instr(a))
+
+spt_rf_wen(a): bool = LET dec = spt_dec(a) IN NOT spt_invalid_pc(a) AND dec`wb? AND NOT spt_exception_overflow?(a) AND NOT spt_exception_dmem?(a)
+
+spt_rf_dst(a): bvec[5] = dst_addr_mux( spt_dec(a), spt_instr(a) )
+
+spt_next_rf(a): regfile = rf_update( (# en := spt_rf_wen(a), addr := spt_rf_dst(a), value := spt_rf_wb_val(a) #), a`rf )
+
+spt_exception(a): bool = spt_invalid_pc(a) OR spt_exception_instr?(a) OR spt_exception_overflow?(a) OR spt_exception_dmem?(a)
+
+spt_eq(a): bool = spt_rs(a) = spt_rt(a)
+
+spt_npc(a): bvec[32] =  LET dec = spt_dec(a) IN
+     IF spt_exception(a) THEN exception_entry ELSE    
+     TABLE
+     | dec`beq? AND spt_eq(a)     |  spt_branch_pc(a) ||
+     | dec`bne? AND NOT spt_eq(a) |  spt_branch_pc(a) ||
+     | dec`jmp?                   |  spt_jmp_pc(a)    ||
+     | dec`jr?                    |  spt_rs(a)        ||
+     | ELSE                       |  zero             ||
+     ENDTABLE
+     ENDIF
+spt_npc_valid(a): bool = LET dec = spt_dec(a) IN
+  ( NOT spt_invalid_pc(a) AND ( (dec`beq? AND spt_eq(a)) OR (dec`bne? AND NOT spt_eq(a)) OR dec`jmp? OR dec`jr? )) 
+  OR spt_exception(a)
+
+
+
 A_step(a: state_A): state_A = 
   LET ifu = (# pc := a`pc, imem := a`imem #),
       ifu_out = ifu_get_output(ifu),
