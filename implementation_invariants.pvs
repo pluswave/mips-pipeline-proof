@@ -83,12 +83,8 @@ Reachable?_ex_rt_ex(q): bool = syn1_ex_need_rt_ex(q)  IMPLIES syn1_mux_ex_rt(q) 
 Reachable?_ex_rt_mem(q): bool = syn1_ex_need_rt(q) AND NOT syn1_dep_mem_dst(q)(rt(q`ex_s`instr)) AND NOT syn1_dep_wb_dst(q)(rt(q`ex_s`instr)) 
                          IMPLIES select_r(q`a_s`rf,rt(q`ex_s`instr)) = q`ex_s`rt
 
-Reachable?_id_rs_id(q): bool = syn1_id_need_rs_id(q)  AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rs(q) = abs_id_rs(Complete_till_ID_EX(q))
 
-Reachable?_id_rt_id(q): bool = syn1_id_need_rt_id(q)  AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rt(q) = abs_id_rt(Complete_till_ID_EX(q))
-
-
-Reachable?(q) : bool = Reachable?_mem_rt_mem(q) AND Reachable?_ex_rt_mem(q) AND Reachable?_ex_rs_ex(q) AND Reachable?_ex_rt_ex(q) AND Reachable?_id_rs_id(q) AND Reachable?_id_rt_id(q)
+Reachable?(q) : bool = Reachable?_mem_rt_mem(q) AND Reachable?_ex_rt_mem(q) AND Reachable?_ex_rs_ex(q) AND Reachable?_ex_rt_ex(q) 
 
 
 Inv_Init: THEOREM Init?(q) IMPLIES Reachable?(q)
@@ -162,7 +158,8 @@ Inv_ex_rt_mem: THEOREM Reachable?_ex_rt_mem(I_step(q))
 %|-  (case-analysis) (expand rf_get_output) (propax))
 %|- QED
 
-Inv_id_rs_id: THEOREM Reachable?_id_rs_id(q)
+
+Inv_id_rs_id: THEOREM syn1_id_need_rs_id(q)  AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rs(q) = abs_id_rs(Complete_till_ID_EX(q))
 
 %|- Inv_id_*_id : PROOF
 %|- (then (skosimp) (impl-invs) (abs-rewrites) (assert) (flatten) (assert)
@@ -174,7 +171,7 @@ Inv_id_rs_id: THEOREM Reachable?_id_rs_id(q)
 %|- QED
 
 
-Inv_id_rt_id: THEOREM Reachable?_id_rt_id(q)
+Inv_id_rt_id: THEOREM syn1_id_need_rt_id(q)  AND NOT syn1_stall_issue(q) IMPLIES syn1_mux_id_rt(q) = abs_id_rt(Complete_till_ID_EX(q))
 
 
 

@@ -116,6 +116,10 @@ impl_next_llflag(q): bool =
       ENDTABLE
     ELSE q`a_s`llflag ENDIF
 
+impl_branch_addr(q): bvec[32] = q`id_s`pc + 4 + sign_extend[16](32) (short_immed_of (q`id_s`instr))  
+
+impl_jmp_addr(q): bvec[32] = (q`id_s`pc + 4)^(31,28) o long_immed_of(q`id_s`instr) o b00
+
 
 END implementation_state_1
 

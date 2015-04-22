@@ -20,12 +20,17 @@ Rewrite_instr_wb: LEMMA (I_step(q))`wb_s`instr = q`mem_s`instr
 Rewrite_pc_ex: LEMMA (I_step(q))`ex_s`pc = q`id_s`pc 
 Rewrite_pc_mem: LEMMA (I_step(q))`mem_s`pc = q`ex_s`pc 
 
+Rewrite_state_ex: LEMMA I_step(q)`ex_s`state = i1s_next_ex_state(q)
+Rewrite_state_mem: LEMMA I_step(q)`mem_s`state = i1s_next_mem_state(q)
 
+AUTO_REWRITE- Rewrite_state_ex
+AUTO_REWRITE- Rewrite_state_mem
 
 %|- Rewrite_dec_* : PROOF
 %|- Rewrite_dst_* : PROOF
 %|- Rewrite_instr* : PROOF
 %|- Rewrite_pc*: PROOF
+%|- Rewrite_state*: PROOF
 %|- (then (skosimp) (auto-rewrite-theory implementation_rewrites_1) (impl-defs) (assert) (expand I_step) (assert))
 %|- QED
 
@@ -67,6 +72,31 @@ Rewrite_id_wb_not_invalid: LEMMA impl_dec_id(q)`wb? IMPLIES NOT impl_dec_id(q)`i
 Rewrite_id_beq_not_invalid: LEMMA impl_dec_id(q)`beq? IMPLIES NOT impl_dec_id(q)`invalid?
 Rewrite_id_bne_not_invalid: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`invalid?
 Rewrite_id_jr_not_invalid: LEMMA impl_dec_id(q)`jr? IMPLIES NOT impl_dec_id(q)`invalid?
+Rewrite_id_jmp_not_invalid: LEMMA impl_dec_id(q)`jmp? IMPLIES NOT impl_dec_id(q)`invalid?
+Rewrite_id_load_not_invalid: LEMMA impl_dec_id(q)`load? IMPLIES NOT impl_dec_id(q)`invalid?
+Rewrite_id_checkov_not_invalid: LEMMA impl_dec_id(q)`checkov? IMPLIES NOT impl_dec_id(q)`invalid?
+
+Rewrite_id_beq_not_checkov: LEMMA impl_dec_id(q)`beq? IMPLIES NOT impl_dec_id(q)`checkov?
+Rewrite_id_bne_not_checkov: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`checkov?
+Rewrite_id_jr_not_checkov: LEMMA impl_dec_id(q)`jr? IMPLIES NOT impl_dec_id(q)`checkov?
+Rewrite_id_jmp_not_checkov: LEMMA impl_dec_id(q)`jmp? IMPLIES NOT impl_dec_id(q)`checkov?
+
+Rewrite_id_beq_not_load: LEMMA impl_dec_id(q)`beq? IMPLIES NOT impl_dec_id(q)`load?
+Rewrite_id_bne_not_load: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`load?
+Rewrite_id_jr_not_load: LEMMA impl_dec_id(q)`jr? IMPLIES NOT impl_dec_id(q)`load?
+Rewrite_id_jmp_not_load: LEMMA impl_dec_id(q)`jmp? IMPLIES NOT impl_dec_id(q)`load?
+
+Rewrite_id_beq_not_store: LEMMA impl_dec_id(q)`beq? IMPLIES NOT impl_dec_id(q)`store?
+Rewrite_id_bne_not_store: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`store?
+Rewrite_id_jr_not_store: LEMMA impl_dec_id(q)`jr? IMPLIES NOT impl_dec_id(q)`store?
+Rewrite_id_jmp_not_store: LEMMA impl_dec_id(q)`jmp? IMPLIES NOT impl_dec_id(q)`store?
+
+Rewrite_id_beq_not_bne: LEMMA impl_dec_id(q)`beq? IMPLIES NOT impl_dec_id(q)`bne?
+Rewrite_id_beq_not_jmp: LEMMA impl_dec_id(q)`beq? IMPLIES NOT impl_dec_id(q)`jmp?
+Rewrite_id_beq_not_jr: LEMMA impl_dec_id(q)`beq? IMPLIES NOT impl_dec_id(q)`jr?
+Rewrite_id_bne_not_jmp: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`jmp?
+Rewrite_id_bne_not_jr: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`jr?
+
 
 %|- Rewrite_ex_* : PROOF
 %|- Rewrite_id_* : PROOF
@@ -74,7 +104,7 @@ Rewrite_id_jr_not_invalid: LEMMA impl_dec_id(q)`jr? IMPLIES NOT impl_dec_id(q)`i
 %|-  (auto-rewrite-theory decoder_props) (assert))
 %|- QED
 
-Rewrite_state_ex_mem: LEMMA I_step(q)`mem_s`state = normal IMPLIES q`ex_s`state = normal
+%Rewrite_state_ex_mem: LEMMA I_step(q)`mem_s`state = normal IMPLIES q`ex_s`state = normal
 
 %|- Rewrite_state_ex_mem : PROOF
 %|- (then (skosimp) (impl-defs) (assert) (expand I_step) (assert)
@@ -89,9 +119,16 @@ Rewrite_ex_alu_wb_2: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl
 %|-  (auto-rewrite-theory decoder_props) (assert) (case-analysis))
 %|- QED
 
-% 有没有更好的办法避免手动重写？
-Rewrite_syn1_id_1: LEMMA q`id_s`state = normal AND ( impl_dec_id(q)`beq? OR impl_dec_id(q)`bne? OR impl_dec_id(q)`jr? ) IMPLIES syn1_id_need_rs_id(q)
+% 有没有更好的办法避免手动重写？拆成标准形式！！
+Rewrite_syn1_id_1: LEMMA q`id_s`state = normal AND  impl_dec_id(q)`beq?  IMPLIES syn1_id_need_rs_id(q)
 
-Rewrite_syn1_id_2: LEMMA q`id_s`state = normal AND ( impl_dec_id(q)`beq? OR impl_dec_id(q)`bne? ) IMPLIES syn1_id_need_rt_id(q)
+Rewrite_syn1_id_2: LEMMA q`id_s`state = normal AND  impl_dec_id(q)`bne?  IMPLIES syn1_id_need_rs_id(q)
+
+Rewrite_syn1_id_3: LEMMA q`id_s`state = normal AND  impl_dec_id(q)`jr?  IMPLIES syn1_id_need_rs_id(q)
+
+Rewrite_syn1_id_4: LEMMA q`id_s`state = normal AND  impl_dec_id(q)`beq?  IMPLIES syn1_id_need_rt_id(q)
+
+Rewrite_syn1_id_5: LEMMA q`id_s`state = normal AND  impl_dec_id(q)`bne?  IMPLIES syn1_id_need_rt_id(q)
+
 
 END implementation_rewrites_1

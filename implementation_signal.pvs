@@ -39,9 +39,7 @@ i1s_next_mem_state(q): stage_state =
         ELSE q`ex_s`state ENDIF
 
 
-i1s_branch_addr(q): bvec[32] = q`id_s`pc + 4 + sign_extend[16](32) (short_immed_of (q`id_s`instr))  
 
-i1s_jmp_addr(q): bvec[32] = (q`id_s`pc + 4)^(31,28) o long_immed_of(q`id_s`instr) o b00
 
 i1s_rs_eq_rt(q): bool = syn1_mux_id_rs(q) = syn1_mux_id_rt(q)
 
@@ -57,8 +55,8 @@ i1s_next_pc(q): bvec[32]
               ELSIF q`id_s`state = normal THEN
                 TABLE
              %------------------------+--------------------++
-             | i1s_id_branch_taken(q) | i1s_branch_addr(q) ||
-             | dec`jmp?               | i1s_jmp_addr(q)    ||
+             | i1s_id_branch_taken(q) | impl_branch_addr(q) ||
+             | dec`jmp?               | impl_jmp_addr(q)    ||
              | dec`jr?                | syn1_mux_id_rs(q)  ||
              | ELSE                   | zero               ||
              %------------------------+--------------------++
@@ -73,7 +71,7 @@ i1s_npc_valid(q): bool = LET dec = impl_dec_id(q) IN
 
 i1s_next_ex_state(q): stage_state = LET dec=impl_dec_id(q) IN
              IF q`mem_s`state = exception THEN bubble
-             ELSIF dec`invalid?   THEN exception
+             ELSIF q`id_s`state=normal AND dec`invalid?   THEN exception
              ELSIF syn1_stall_issue(q) THEN bubble 
              ELSE q`id_s`state ENDIF
 

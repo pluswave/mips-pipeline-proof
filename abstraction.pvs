@@ -188,7 +188,12 @@ Squash_rest?_till_IF_ID(q): bool = Squash_rest?_till_ID_EX(q) OR
 action_IF_ID(q): state_A = q`a_s WITH 
  [(rf) := rf_update(abs_id_rf_input_write(q), q`a_s`rf),
   (dmem) := dmem_update(abs_id_dmem_input_write(q),q`a_s`dmem),                    
-  (pc) := IF abs_id_exception(q) THEN exception_entry ELSE q`a_s`pc ENDIF,
+  (pc) := LET dec = impl_dec_id(q) IN 
+        IF abs_id_exception(q) THEN exception_entry 
+         ELSIF abs_id_branch_taken?(q) THEN impl_branch_addr(q)
+         ELSIF q`id_s`state = normal AND dec`jmp? THEN impl_jmp_addr(q)
+         ELSIF q`id_s`state = normal AND dec`jr?  THEN abs_id_rs(q)
+         ELSE q`a_s`pc ENDIF,
   (epc) := IF abs_id_exception(q) THEN q`id_s`pc ELSE q`a_s`epc ENDIF,
   (llflag) := IF abs_id_exception(q) THEN FALSE 
          ELSIF q`id_s`state = normal THEN
