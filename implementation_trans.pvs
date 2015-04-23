@@ -54,7 +54,7 @@ i1t_next_ifu(q): ifu =
 i1t_next_if_id(q): state_if_id =
     (# state := i1s_next_id_state(q), 
        instr := IF syn1_stall_issue(q) THEN q`id_s`instr ELSE i1s_get_instr(q) ENDIF ,
-       pc    := IF syn1_stall_issue(q) THEN q`id_s`pc ELSE i1t_next_ifu(q)`pc ENDIF
+       pc    := IF syn1_stall_issue(q) THEN q`id_s`pc ELSE q`a_s`pc ENDIF
     #)
 
 

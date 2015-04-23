@@ -759,8 +759,53 @@ VC_Squash_epc: LEMMA NOT Squash_rest?_till_IF_ID(q) IMPLIES Complete_till_IF_ID(
 %|- QED
 
 
+VC_Squash_no_pass: LEMMA NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES NOT Squash_rest?_till_ID_EX(I_step(q))
+
+%|- VC_Squash_no_pass : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Squash_rest?_till_ID_EX)
+%|-  (expand Squash_rest?_till_IF_ID) (stop-rewrite VC_stall_normal)
+%|-  (assert) (flatten) (expand I_step (-1) 2) (expand I_step (-1) 2)
+%|-  (expand Squash_rest?_till_EX_MEM (1)) (expand abs_id_exception)
+%|-  (expand abs_id_branch_taken?) (expand abs_id_jmp?) (assert)
+%|-  (case-analysis))
+%|- QED
+
+VC_if_normal_1: LEMMA NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) AND imem_addr_pred(q`a_s`pc) IMPLIES I_step(q)`id_s`state = normal
+
+%|- VC_if_normal_* : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand I_step)
+%|-  (stop-rewrite VC_stall_normal) (assert)
+%|-  (expand Squash_rest?_till_IF_ID) (expand Squash_rest?_till_ID_EX)
+%|-  (assert) (flatten) (assert) (auto-rewrite! Rewrite_exception)
+%|-  (expand abs_id_jmp?) (expand abs_id_branch_taken?)
+%|-  (expand abs_id_exception) (assert)
+%|-  (expand ifu_get_addr_valid) (expand ifu_get_instr) 
+%|-  (case-analysis))
+%|- QED
+
+VC_if_normal_2: LEMMA NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) AND imem_addr_pred(q`a_s`pc) IMPLIES I_step(q)`id_s`instr = q`a_s`imem(q`a_s`pc)
+
+VC_if_normal_3: LEMMA NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) AND imem_addr_pred(q`a_s`pc) IMPLIES I_step(q)`id_s`pc = q`a_s`pc
+
+
+VC_if_exception: LEMMA NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) AND NOT imem_addr_pred(q`a_s`pc) IMPLIES I_step(q)`id_s`state = exception
+
+
+
 comm_pc_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = A_step(Complete_till_IF_ID(q)`a_s)`pc
-comm_rf_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = A_step(Complete_till_IF_ID(q)`a_s)`rf
+
+%|- comm_pc_case3 : PROOF
+%|- (then (skosimp) (comm-rewrites) (stop-rewrite VC_exception_pass)
+%|-  (expand A_step) (assert) (auto-rewrite-theory datapath)
+%|-  (expand Complete_till_IF_ID (3) 1)
+%|-  (auto-rewrite-theory specification_trans :always? T)
+%|-  (datapath-rewrites) (assert) (expand ifu_update)
+%|-  (expand abs_id_exception) (expand abs_id_branch_taken?)
+%|-  (expand abs_id_src1) (expand abs_id_src2)
+%|-  (expand abs_id_rs) (expand abs_id_rt) (assert) (postpone))
+%|- QED
+
+omm_rf_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`rf = A_step(Complete_till_IF_ID(q)`a_s)`rf
 comm_dmem_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`dmem = A_step(Complete_till_IF_ID(q)`a_s)`dmem
 comm_epc_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`epc = A_step(Complete_till_IF_ID(q)`a_s)`epc
 comm_llflag_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = A_step(Complete_till_IF_ID(q)`a_s)`llflag

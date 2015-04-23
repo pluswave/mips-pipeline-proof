@@ -17,6 +17,12 @@
          "Most definitions from abstraction theory installed as rewrites"
 	 "Installing rewrite rules from abstraction  definitions")
 
+(defstep datapath-rewrites ()
+  (then (auto-rewrite-theory "datapath" :always? T)
+        (stop-rewrite "rf_update" "dmem_update" "alu" "ifu_update") )
+  "Most definitions from datapath theory installed as rewrites, but not for update and alu"
+  "Install rewrite rules from datapath definitions" )
+
 (defstep abs-rewrites ()
 	 (then (abs-defs)
 	 (auto-rewrite-theory "abstraction_rewrites" :always? T))
