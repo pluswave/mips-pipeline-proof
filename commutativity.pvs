@@ -580,7 +580,7 @@ VC_stall_id_dec: CLAIM syn1_stall_issue(q) AND NOT Squash_rest?_till_ID_EX(q) IM
 
 %|- VC_stall_id_dec : PROOF
 %|- (then (skosimp) (expand impl_dec_id) (expand I_step) (assert)
-%|-  (comm-rewrites) (assert))
+%|-  (comm-rewrites) (stop-rewrite VC_stall_normal) (assert))
 %|- QED
 
 VC_stall_id_dst: CLAIM syn1_stall_issue(q) AND NOT Squash_rest?_till_ID_EX(q) IMPLIES impl_id_dst(I_step(q)) = impl_id_dst(q)
