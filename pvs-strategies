@@ -19,7 +19,7 @@
 
 (defstep datapath-rewrites ()
   (then (auto-rewrite-theory "datapath" :always? T)
-        (stop-rewrite "rf_update" "dmem_update" "alu" "ifu_update") )
+        (stop-rewrite "rf_update" "dmem_update" "alu" "ifu_update" "dmem_get_output") )
   "Most definitions from datapath theory installed as rewrites, but not for update and alu"
   "Install rewrite rules from datapath definitions" )
 

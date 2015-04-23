@@ -81,7 +81,8 @@ i1s_next_id_state(q): stage_state = LET dec=impl_dec_id(q) IN
              ELSIF syn1_stall_issue(q) THEN normal
              ELSIF q`id_s`state = normal THEN
                 IF (i1s_id_branch_taken(q) OR dec`jmp? OR dec`jr?) THEN bubble
-                ELSIF dec`invalid? THEN exception
+                ELSIF dec`invalid? THEN exception                      
+                ELSIF NOT ifu_get_addr_valid(i1s_ifu(q)) THEN exception
                 ELSE normal ENDIF
              ELSIF NOT ifu_get_addr_valid(i1s_ifu(q)) THEN exception
              ELSE normal ENDIF
