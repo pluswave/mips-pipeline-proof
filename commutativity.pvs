@@ -17,7 +17,9 @@ VC2_dec: LEMMA impl_dec_mem(I_step(q)) = impl_dec_ex(Complete_till_EX_MEM(q))
 
 VC3_dec: LEMMA impl_dec_ex(I_step(q)) = impl_dec_id(Complete_till_ID_EX(q))
 
-%|- VC*_dec: PROOF
+%|- VC1_dec: PROOF
+%|- VC2_dec: PROOF
+%|- VC3_dec: PROOF
 %|- (then (skosimp) (comm-rewrites) (abs-rewrites)  (assert) (expand I_step) (assert))
 %|- QED
 
