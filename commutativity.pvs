@@ -64,6 +64,11 @@ VC1_wb_en:  LEMMA impl_rf_wb_en(I_step(q)) = abs_mem_rf_wen(Complete_till_MEM_WB
 %|- QED
 
 Rewrite_exception: LEMMA exception?(q`mem_s`state) = Squash_rest?_till_EX_MEM(q)
+
+%|- Rewrite_exception : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Squash_rest?_till_EX_MEM)
+%|-  (assert) (bddsimp))
+%|- QED
 AUTO_REWRITE- Rewrite_exception
 
 VC2_rf:  LEMMA Complete_till_MEM_WB(I_step(q))`a_s`rf = Complete_till_EX_MEM(q)`a_s`rf
@@ -205,10 +210,12 @@ VC3_dmem: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`dmem = Complete_till_ID_EX(q
 %|-    (spread (case "i1s_dmem_wen(I_step(q!1))")
 %|-     ((then (copy -1) (expand i1s_dmem_wen (-1) 1) (assert)
 %|-       (replace -1 2) (flatten) (assert) (expand abs_mem_rt)
-%|-       (expand abs_ex_rt) (assert) (expand I_step (2) 1) (assert))
+%|-       (expand abs_ex_rt) (assert) (expand I_step (2) 1) (assert)
+%|-       (expand I_step (-1)) (assert) (case-analysis))
 %|-      (then (copy 1) (expand i1s_dmem_wen (1) 1) (assert) (replace 1 4)
 %|-       (expand dmem_update) (propax)))))))
 %|- QED
+
 
 VC_wb_alu_1: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl_dec_ex(q)`wbsrc = aluout IMPLIES i1s_src1(q) = abs_ex_src1(Complete_till_EX_MEM(q)) 
 VC_wb_alu_2: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl_dec_ex(q)`wbsrc = aluout IMPLIES i1s_src2(q) = abs_ex_src2(Complete_till_EX_MEM(q))
@@ -248,17 +255,22 @@ VC3_rf: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`rf = Complete_till_ID_EX(q)`a_
 
 %VC3_Squash_1: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Squash_rest?_till_EX_MEM(I_step(q)) = Squash_rest?_till_ID_EX(q)
 VC3_Squash_1: LEMMA Squash_rest?_till_ID_EX(q) = ( Squash_rest?_till_EX_MEM(q) OR Squash_rest?_till_EX_MEM(I_step(q)) ) 
+
+%|- VC3_Squash_1 : PROOF
+%|- (then (skosimp) (expand Squash_rest?_till_ID_EX) (assert)
+%|-  (expand Squash_rest?_ID_EX) (expand Squash_rest?_till_EX_MEM)
+%|-  (comm-rewrites) (assert) (expand I_step) (assert)
+%|-  (spread (case-analysis)
+%|-   ((then (lift-if -2) (case-analysis)) (case-analysis)
+%|-    (case-analysis))))
+%|- QED
+
 VC3_Squash_id_bubble:  LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`id_s`state = bubble
 VC3_Squash_ex_bubble:  LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`ex_s`state = bubble
 VC3_Squash_mem_bubble: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`mem_s`state = bubble
 %VC3_Squash_3: LEMMA Squash_rest?_till_EX_MEM(I_step(q)) IMPLIES Squash_rest?_till_ID_EX(q)
 %VC3_Squash_4: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Squash_rest?_till_ID_EX(q)
 
-%|- VC3_Squash_1 : PROOF
-%|- (then (skosimp) (expand Squash_rest?_till_ID_EX) (assert)
-%|-  (expand Squash_rest?_ID_EX) (expand Squash_rest?_till_EX_MEM) (assert)
-%|-  (comm-rewrites) (assert) (expand I_step) (assert) (case-analysis))
-%|- QED
 
 %|- VC3_Squash_*_bubble : PROOF
 %|- (then (skosimp) (comm-rewrites) (expand Squash_rest?_till_EX_MEM)
