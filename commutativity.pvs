@@ -101,9 +101,11 @@ VC2_pc_1_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_EX_MEM(q)`a_
 VC2_epc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES I_step(q)`a_s`epc = Complete_till_EX_MEM(q)`a_s`epc
 VC2_llflag_1: LEMMA I_step(q)`a_s`llflag = Complete_till_EX_MEM(q)`a_s`llflag
 VC2_llflag_2: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES NOT Complete_till_EX_MEM(q)`a_s`llflag
-%|- VC2_pc_1* : PROOF
+%|- VC2_pc_1 : PROOF
+%|- VC2_pc_1_1 : PROOF
 %|- VC2_epc_1 : PROOF
 %|- VC2_llflag_1: PROOF
+%|- VC2_llflag_2: PROOF
 %|- (then (skosimp) (comm-rewrites) (expand Complete_till_MEM_WB)
 %|-  (expand Complete_till_EX_MEM) (assert) (expand I_step)
 %|-  (expand Squash_rest?_till_EX_MEM) (assert) (expand ifu_update)
