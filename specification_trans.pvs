@@ -55,7 +55,7 @@ wb_val_mux(dec:decoder_signal, alu_out:bvec[32],
           %--------+----------------++
           | aluout | alu_out        ||
           | lui    | upper_imm      ||
-          | load   | loadv         ||
+          | load   | loadv          ||
           | pc4    | pc_4           ||
           %--------+----------------++          
          ENDTABLE
@@ -110,7 +110,7 @@ spt_exception_dmem?(a): bool = NOT spt_invalid_pc(a) AND ( spt_dec(a)`load? OR s
 
 spt_exception_instr?(a): bool = spt_dec(a)`invalid?
 
-spt_dmem_wen(a): bool = spt_dec(a)`store? AND NOT spt_exception_dmem?(a) AND ( spt_dec(a)`atom? IMPLIES a`llflag )
+spt_dmem_wen(a): bool = NOT spt_invalid_pc(a) AND spt_dec(a)`store? AND NOT spt_exception_dmem?(a) AND ( spt_dec(a)`atom? IMPLIES a`llflag )
 
 spt_dmem_input_read(a): dmem_input_read = LET dec = spt_dec(a) IN (# addr := spt_aluout(a)`out, mwidth := dec`mwidth, se := dec`loadse? #)
 
@@ -148,71 +148,14 @@ spt_npc_valid(a): bool = LET dec = spt_dec(a) IN
   ( NOT spt_invalid_pc(a) AND ( (dec`beq? AND spt_eq(a)) OR (dec`bne? AND NOT spt_eq(a)) OR dec`jmp? OR dec`jr? )) 
   OR spt_exception(a)
 
+spt_ifu_input(a): ifu_input = (# npc := spt_npc(a), npc_valid? := spt_npc_valid(a) #)
+                         
+spt_next_ifu(a): ifu = ifu_update( spt_ifu_input(a), spt_ifu(a) )
 
+spt_next_epc(a): bvec[32] = IF spt_exception(a) THEN pc(a) ELSE epc(a) ENDIF
 
-A_step(a: state_A): state_A = 
-  LET ifu = (# pc := a`pc, imem := a`imem #),
-      ifu_out = ifu_get_output(ifu),
-      valid_pc = ifu_out`addr_valid? ,
-      instr = ifu_out`ins,
-      % ifu 信号
-      op = get_abs_opcode(instr),
-      dec = decoder(op),
-      % 译码器信号
-      rf_read_signal = (# addr_1 := rs(instr), addr_2 := rt(instr) #),
-      rf_read_val = rf_get_output( rf_read_signal, a`rf ),
-      rs_val = rf_read_val`val_1,
-      rt_val = rf_read_val`val_2,
-      % rf 读
-      pc_4 = ifu`pc + 4,
-      % pc + 4
-      sext_v =  sign_extend[16](32) (short_immed_of (instr)),  
-      % 立即数扩展
-      src1 = src1_mux(dec, rs_val, rt_val),
-      src2 = src2_mux(dec, rt_val, instr),
-      % 源操作数 mux
-      rs_eq_rt = rs_val = rt_val,
-      % 比较器
-      branch_pc = pc_4 + sext_v,
-      % 短跳pc目标
-      jmp_pc = pc_4^(31,28) o long_immed_of(instr) o b00,
-      % 长跳pc目标
-      alu_out = alu(src1, src2,dec`aluop),
-      alu_out_bv = alu_out`out,
-      alu_out_ov = alu_out`ov,
-      % ALU计算
-      exception_ov = dec`checkov? AND alu_out_ov,
-      exception_dmem_addr = ( dec`load? OR dec`store? ) AND NOT dmem_addr_valid?(alu_out_bv),
-      exception_instr = dec`invalid?,
-      % 异常
-      dmem_wen = valid_pc AND dec`store? AND (dec`atom? IMPLIES a`llflag ) AND NOT exception_dmem_addr,
-      dmem_input_r = (# addr := alu_out_bv, mwidth := dec`mwidth, se := dec`loadse? #),
-      dmem_input_w = (# addr := alu_out_bv, mwidth := dec`mwidth, value:= rt_val,  wen := dmem_wen #),      
-      dmem_read_v = dmem_get_output( dmem_input_r, a`dmem ), 
-      next_dmem = dmem_update(dmem_input_w, a`dmem),
-      % dmem读、写      
-      wbval =  wb_val_mux(dec, alu_out_bv, pc_4, dmem_read_v, instr),
-      dst = dst_addr_mux(dec, instr),
-      rf_write = (# addr := dst, value := wbval, en:= valid_pc AND dec`wb? AND NOT exception_ov AND NOT exception_dmem_addr #),  
-      next_rf = rf_update(rf_write, a`rf),
-      % rf 写
-      exception = NOT valid_pc OR exception_instr OR exception_ov OR exception_dmem_addr,
-      npc = IF exception THEN exception_entry ELSE    
-     TABLE
-     | dec`beq? AND rs_eq_rt     |  branch_pc ||
-     | dec`bne? AND NOT rs_eq_rt |  branch_pc ||
-     | dec`jmp?                  |  jmp_pc    ||
-     | dec`jr?                   |  rs_val    ||
-     | ELSE                      |  zero      ||
-     ENDTABLE
-     ENDIF,
-      npc_valid = ( valid_pc AND ( (dec`beq? AND rs_eq_rt) OR (dec`bne? AND NOT rs_eq_rt) OR dec`jmp? OR dec`jr? )) OR exception,
-      ifu_input = (# npc := npc, npc_valid? := npc_valid #),
-      next_ifu = ifu_update( ifu_input, ifu ), 
-      next_pc = next_ifu`pc,
-      next_imem = next_ifu`imem,
-      next_epc = IF exception THEN a`pc ELSE a`epc ENDIF,
-      next_llflag = IF exception THEN FALSE ELSE
+spt_next_llflag(a): bool = IF spt_exception(a) THEN FALSE ELSE
+      LET dec=spt_dec(a) IN
       TABLE  
       %-------------------------+-----------%%
       | dec`atom? AND dec`load? | TRUE      ||
@@ -221,13 +164,16 @@ A_step(a: state_A): state_A =
       %-------------------------+-----------%%
       ENDTABLE
       ENDIF
-  IN 
-  (# pc := next_pc,
-     rf := next_rf,
-     dmem := next_dmem,
-     imem := next_imem,
-     epc  := next_epc,
-     llflag := next_llflag
+
+
+A_step(a): state_A = 
+  
+  (# pc := spt_next_ifu(a)`pc,
+     rf := spt_next_rf(a),
+     dmem := spt_next_dmem(a),
+     imem := spt_next_ifu(a)`imem,
+     epc  := spt_next_epc(a),
+     llflag := spt_next_llflag(a)
    #)  
 
 
@@ -256,19 +202,6 @@ rt(a): bvec[32] = select_r(rf(a), rt(instr(a)))
 mem_addr_calcu(a): bvec[32] = LET ins = instr(a) IN rs(a) + sign_extend[16](32)(short_immed_of(ins))
 
 action_exception(a) : bool = A_step(a) = a WITH [ pc := exception_entry, epc := a`pc, llflag := FALSE] 
-
-%|- *_prop :PROOF
-%|- (then (skosimp*)
-%|-  (auto-rewrite! concat_bottom) (auto-rewrite! zero_extend) (auto-rewrite! shamt) 
-%|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
-%|-  (apply (then (decompose-equality +) 
-%|-  (auto-rewrite-theory specification_trans :always? T) 
-%|-  (auto-rewrite-theory specification_muxers :always? T)
-%|-  (assert)
-%|-  (auto-rewrite-theory datapath :always? T)
-%|-  (auto-rewrite-theory instruction_decoder :always? T)
-%|-  (assert))))
-%|- QED
 
 
 % case: pc exception
@@ -358,6 +291,20 @@ jal_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = jal IMPLIE
       pc := (a`pc + 4) ^ (31, 28) o long_immed_of(instr(a)) o b00,
       rf := assign_r(rf(a), ra_reg, pc(a) + 4 )
        ]
+
+
+%|- *_prop :PROOF
+%|- (then (skosimp*)
+%|-  (auto-rewrite! concat_bottom) (auto-rewrite! zero_extend) (auto-rewrite! shamt) 
+%|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
+%|-  (apply (then (decompose-equality +) 
+%|-  (auto-rewrite-theory specification_trans :always? T) 
+%|-  (auto-rewrite-theory specification_muxers :always? T)
+%|-  (assert)
+%|-  (auto-rewrite-theory datapath :always? T)
+%|-  (auto-rewrite-theory instruction_decoder :always? T)
+%|-  (assert))))
+%|- QED
 
 
 
