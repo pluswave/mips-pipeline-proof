@@ -12,12 +12,24 @@ BEGIN
 
 
 %% 地址类型
-    dmem_addr_valid?( a :bvec[32]) : bool = a^(MAX_EXP-1,MIN_EXP) /= bvec0[MAX_EXP-MIN_EXP] 
+    dmem_addr_valid? ( a :bvec[32]) : bool = a^(MAX_EXP-1,MIN_EXP) /= bvec0[MAX_EXP-MIN_EXP] 
         AND ( MAX_EXP < 32 IMPLIES a^(31,MAX_EXP-1) = bvec0[32-MAX_EXP])
 
-    dmem_addr: TYPE = { a : bvec[32] | dmem_addr_valid?(a) }
+%|- dmem_addr_valid?_TCC1 : PROOF
+%|-  (then (typepred MAX_EXP) (assert))
+%|- QED
 
-    dmem_addr_dontcare: dmem_addr
+    some_mem_addr: bvec[32] = bvec0[33-MAX_EXP] o bvec1[MAX_EXP-MIN_EXP-1] o bvec0[MIN_EXP]
+
+    some_addr_valid: LEMMA dmem_addr_valid?(some_mem_addr)
+
+    dmem_addr: TYPE = { a : bvec[32] | dmem_addr_valid?(a) } CONTAINING some_mem_addr
+
+%|- dmem_addr_TCC1 : PROOF
+%|-  (then (lemma some_addr_valid) (assert))
+%|- QED
+
+    % dmem_addr_dontcare: dmem_addr
 
 
 END memaddr

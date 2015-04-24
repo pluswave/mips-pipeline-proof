@@ -86,6 +86,11 @@ funct_disjoint_2:  AXIOM get_funct(bv1) /= get_funct(bv2) IMPLIES bv1 /= bv2
    shamt(ins:instruction): below(32) = bv2nat(shamtbv(ins)) %R
    func(ins:instruction): funct = get_funct(ins ^ (5,0)) %R
 
+%|- shamt_TCC1: PROOF
+%|-  (then (skosimp) (typepred "bv2nat[5](shamtbv(ins!1))" ) ( repeat (expand exp2)) )
+%|- QED
+
+
 %%% 立即数
    short_immed: TYPE = bvec[16]
    long_immed:  TYPE = bvec[26]
@@ -125,6 +130,9 @@ funct_disjoint_2:  AXIOM get_funct(bv1) /= get_funct(bv2) IMPLIES bv1 /= bv2
    % 异常入口地址
    exception_entry: imem_addr
 
+%|- exception_entry_TCC1 : PROOF
+%|-  (then (lemma imem_addr_pred_3) (skosimp) (inst?))
+%|- QED
    
 
 END instructions

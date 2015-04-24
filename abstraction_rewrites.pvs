@@ -52,7 +52,7 @@ Rewrite_Complete_till_EX_MEM_bubble: LEMMA q`mem_s`state = bubble IMPLIES Comple
 %|- Rewrite_Complete_till_EX_MEM_bubble[EX_MEM] : PROOF
 %|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites)
 %|-  (abs-defs) (expand Complete_till_#1) (assert))
-%|-  (auto-rewrite! rf_update) (auto-rewrite! dmem_update)
+%|-  (auto-rewrite! "rf_update" "abs_mem_rf_wen") (auto-rewrite! dmem_update)
 %|-  (auto-rewrite-theory implementation_state_1 :always? T)
 %|-  (apply (decompose-equality 1) 
 %|-  (assert)))
@@ -60,18 +60,31 @@ Rewrite_Complete_till_EX_MEM_bubble: LEMMA q`mem_s`state = bubble IMPLIES Comple
 
 
 Rewrite_Complete_till_ID_EX_bubble: LEMMA q`ex_s`state = bubble IMPLIES Complete_till_ID_EX(q)`a_s = Complete_till_EX_MEM(q)`a_s
-Rewrite_Complete_till_IF_ID_bubble: LEMMA q`id_s`state = bubble IMPLIES Complete_till_IF_ID(q)`a_s = Complete_till_ID_EX(q)`a_s
 
-%|- Rewrite_Complete_till_ID_EX_bubble[ID_EX] : PROOF
-%|- Rewrite_Complete_till_IF_ID_bubble[IF_ID] : PROOF
+%|- Rewrite_Complete_till_ID_EX_bubble : PROOF
 %|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites)
-%|-  (expand Complete_till_#1) (expand Complete_#1) (assert)
+%|-  (expand Complete_till_ID_EX) (expand Complete_ID_EX) (assert)
 %|-  (lift-if)
 %|-  (spread (split 1)
 %|-   ((propax)
-%|-    (then (flatten) (expand action_#1)
+%|-    (then (flatten) (expand action_ID_EX)
 %|-     (auto-rewrite-theory implementation_state_1 :always? T) (assert)
-%|-     (abs-defs) (auto-rewrite! dmem_update) (auto-rewrite! rf_update)
+%|-     (abs-defs) (auto-rewrite! dmem_update)
+%|-     (auto-rewrite! rf_update abs_ex_rf_wen) (hide 1)
+%|-     (apply (decompose-equality 1) (then assert))))))
+%|- QED
+
+Rewrite_Complete_till_IF_ID_bubble: LEMMA q`id_s`state = bubble IMPLIES Complete_till_IF_ID(q)`a_s = Complete_till_ID_EX(q)`a_s
+
+%|- Rewrite_Complete_till_IF_ID_bubble : PROOF
+%|- (then (skosimp) (auto-rewrite-theory abstraction_rewrites)
+%|-  (expand Complete_till_IF_ID) (expand Complete_IF_ID) (assert)
+%|-  (lift-if)
+%|-  (spread (split 1)
+%|-   ((propax)
+%|-    (then (flatten) (expand action_IF_ID)
+%|-     (auto-rewrite-theory implementation_state_1 :always? T) (assert)
+%|-     (abs-defs) (auto-rewrite! dmem_update abs_id_dmem_wen abs_id_exception abs_id_rf_wen abs_id_branch_taken?) (auto-rewrite! rf_update)
 %|-     (hide 1) (apply (decompose-equality 1) (then assert))))))
 %|- QED
 
@@ -115,7 +128,8 @@ Rewrite_epc_wb: LEMMA Complete_till_MEM_WB(q)`a_s`epc = q`a_s`epc
 Rewrite_llflag_wb: LEMMA Complete_till_MEM_WB(q)`a_s`llflag = q`a_s`llflag
 
 %|- Rewrite_*_wb : PROOF
-%|- (then (skosimp) (abs-defs) (expand Complete_till_MEM_WB) (assert))
+%|- (then (skosimp) (abs-defs) (expand Complete_till_MEM_WB) (assert)
+%|-  (auto-rewrite-theory implementation_state_1) (assert))
 %|- QED
 
 Rewrite_wb_val_wb: LEMMA impl_next_wb_val(Complete_till_MEM_WB(q)) = impl_next_wb_val(q)

@@ -2,7 +2,7 @@
 stores: THEORY
 BEGIN
 
-IMPORTING memaddr_align
+%IMPORTING memaddr_align
 IMPORTING bitvectors@top
 IMPORTING bvconsts
 %%%---------------------------------------------------------------------
@@ -61,6 +61,18 @@ assign_r(rf:regfile, a:bvec[5], d:bvec[32]): regfile =
 %%% 数据内存类型
 
 
+dmem_addr_valid? : pred[bvec[32]]
+
+dmem_addr_1:  AXIOM EXISTS (x: bvec[32]): dmem_addr_valid?(x)
+dmem_addr_2:  AXIOM EXISTS (x: bvec[32]): NOT dmem_addr_valid?(x)
+
+
+dmem_addr: TYPE+ = { a: bvec[32] | dmem_addr_valid?(a) } 
+
+%|- dmem_addr_TCC1 : PROOF
+%|-  (then (lemma dmem_addr_1) (skosimp) (inst?))
+%|- QED
+
 data_memory: TYPE = [dmem_addr -> bvec[8] ]
 dmem : VAR data_memory
 addr, addr2: VAR dmem_addr
@@ -74,8 +86,8 @@ read8(dmem,addr):bvec[8] =
 write8(dmem,addr,d8): data_memory =
 	dmem WITH [ (addr) := d8 ]
 
-align_16 : [ dmem_addr, bvec[1] -> dmem_addr ] = memaddr_align[1]
-align_32 : [ dmem_addr, bvec[2] -> dmem_addr ] = memaddr_align[2]
+align_16 : [ dmem_addr, bvec[1] -> dmem_addr ] 
+align_32 : [ dmem_addr, bvec[2] -> dmem_addr ] 
 
 read16(dmem,addr):bvec[16] =
     read8(dmem, align_16(addr,b1) ) o  read8(dmem, align_16(addr,b0))  

@@ -98,12 +98,6 @@ Rewrite_id_bne_not_jmp: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`jmp
 Rewrite_id_bne_not_jr: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`jr?
 
 
-%|- Rewrite_ex_* : PROOF
-%|- Rewrite_id_* : PROOF
-%|- (then (skosimp) (impl-defs) (assert)
-%|-  (auto-rewrite-theory decoder_props) (assert))
-%|- QED
-
 %Rewrite_state_ex_mem: LEMMA I_step(q)`mem_s`state = normal IMPLIES q`ex_s`state = normal
 
 %|- Rewrite_state_ex_mem : PROOF
@@ -119,8 +113,19 @@ Rewrite_ex_alu_wb_2: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl
 %|-  (auto-rewrite-theory decoder_props) (assert) (case-analysis))
 %|- QED
 
+%|- Rewrite_ex_* : PROOF
+%|- Rewrite_id_* : PROOF
+%|- (then (skosimp) (impl-defs) (assert)
+%|-  (auto-rewrite-theory decoder_props) (assert))
+%|- QED
+
+
 % 有没有更好的办法避免手动重写？拆成标准形式！！
 Rewrite_syn1_id_1: LEMMA q`id_s`state = normal AND  impl_dec_id(q)`beq?  IMPLIES syn1_id_need_rs_id(q)
+
+%|- Rewrite_syn1_id_* : PROOF
+%|- (then (skosimp) (expand syn1_id_need_rs_id) (expand syn1_id_need_rt_id) (assert))
+%|- QED
 
 Rewrite_syn1_id_2: LEMMA q`id_s`state = normal AND  impl_dec_id(q)`bne?  IMPLIES syn1_id_need_rs_id(q)
 
