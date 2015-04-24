@@ -802,7 +802,6 @@ VC_if_exception_1: LEMMA NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue
 comm_pc_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`pc = A_step(Complete_till_IF_ID(q)`a_s)`pc
 
 %|- comm_pc_case3 : PROOF
-%|- comm_epc_case3 : PROOF
 %|- comm_llflag_case3 : PROOF
 %|- (then (skosimp) (comm-rewrites) (stop-rewrite VC_exception_pass)
 %|-  (expand A_step) (assert) 

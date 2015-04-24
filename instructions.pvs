@@ -155,6 +155,10 @@ BEGIN
                          op=bne OR op=lb OR   op=lbu OR  op=lh OR   op=lhu OR   op=lw OR   op=ll OR  op=sb OR  
                          op=sh  OR  op=sw OR   op=sc OR   op=lui OR  op=j OR     op=jal OR  op=jr OR  op=slti OR 
                          op=sltiu OR op=invalid
+
+%|- abs_opcode_cover : PROOF
+%|- (then (skosimp) (abstract-and-mc ? ? ? nil nil nil (assert) nil nil))
+%|- QED
    
    get_abs_opcode(ins:instruction) : abs_opcode = LET op=op(ins), func=func(ins) IN TABLE
          op
