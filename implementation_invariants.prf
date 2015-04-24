@@ -1,0 +1,6 @@
+(implementation_invariants
+ (I_step_reachable 0
+  (I_step_reachable-1 nil 3638826898
+   ("" (then (skosimp) (typepred q!1) (use Inv_Closure) (assert)) nil)
+   nil nil)))
+
