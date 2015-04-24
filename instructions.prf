@@ -1,0 +1,13 @@
+(instructions
+ (shamt_TCC1 0
+  (shamt_TCC1-1 nil 3638876586
+   (""
+    (then (skosimp) (typepred "bv2nat[5](shamtbv(ins!1))")
+     (repeat (expand exp2)))
+    nil)
+   nil nil))
+ (exception_entry_TCC1 0
+  (exception_entry_TCC1-1 nil 3638876586
+   ("" (then (lemma imem_addr_pred_3) (skosimp) (inst?)) nil) nil nil)))
+(abstract_instructions)
+
