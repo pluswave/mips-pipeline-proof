@@ -828,7 +828,7 @@ comm_rf_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) 
 %|-  (datapath-rewrites) (assert) (expand rf_update)
 %|-  (spread (case "imem_addr_pred(q!1`a_s`pc)")
 %|-   ((then (assert) (auto-rewrite! "abs_id_rf_wb_val" "abs_id_rf_wen" "impl_dec_id" 
-%|-      "abs_id_src1" "abs_id_src2" "impl_dec_dst"
+%|-      "abs_id_src1" "abs_id_src2" "impl_id_dst"
 %|-      "abs_id_rs" "abs_id_rt")
 %|-     (assert)
 %|-     (auto-rewrite-theory decoder_props) (case-analysis))
