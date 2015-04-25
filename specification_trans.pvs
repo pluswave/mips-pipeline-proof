@@ -283,7 +283,7 @@ andi_prop: THEOREM is_abs_opcode?(a)(andi) IMPLIES
 slti_prop: THEOREM is_abs_opcode?(a)(slti) IMPLIES
     A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)),  alu_slt(rs(a) , sign_extend[16](32)(short_immed_of(instr(a))))) ]
 
-sltiu_prop: THEOREM is_abs_opcode?(a)(slti) IMPLIES
+sltiu_prop: THEOREM is_abs_opcode?(a)(sltiu) IMPLIES
     A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)),  alu_sltu(rs(a) , zero_extend[16](32)(short_immed_of(instr(a))))) ]
 
 
