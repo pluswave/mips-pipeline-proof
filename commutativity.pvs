@@ -94,7 +94,11 @@ VC2_dmem: LEMMA I_step(q)`a_s`dmem = Complete_till_EX_MEM(q)`a_s`dmem
 %|-       (then (expand dmem_update) (propax))))))))
 %|- QED
 
+VC1_imem: LEMMA Complete_till_MEM_WB(q)`a_s`imem = q`a_s`imem
 
+%|- VC1_imem : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_MEM_WB) (assert))
+%|- QED
 
 VC2_pc_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES  I_step(q)`a_s`pc = Complete_till_EX_MEM(q)`a_s`pc
 VC2_pc_1_1: LEMMA Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_EX_MEM(q)`a_s`pc = exception_entry
@@ -120,6 +124,13 @@ VC2_epc_2: LEMMA NOT Squash_rest?_till_EX_MEM(q) IMPLIES Complete_till_EX_MEM(q)
 %|- (then (skosimp) (comm-rewrites) (expand Squash_rest?_till_EX_MEM)
 %|-  (expand Complete_till_EX_MEM) (assert))
 %|- QED
+
+VC2_imem: LEMMA Complete_till_EX_MEM(q)`a_s`imem = q`a_s`imem
+
+%|- VC2_imem : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_EX_MEM) (assert))
+%|- QED
+
 
 % EX阶段
 
@@ -348,6 +359,12 @@ VC3_llflag: LEMMA Complete_till_EX_MEM(I_step(q))`a_s`llflag = Complete_till_ID_
 %|-   (expand Squash_rest?_till_EX_MEM) (assert) (case-analysis)))
 %|- QED
 
+VC3_imem: LEMMA Complete_till_ID_EX(q)`a_s`imem = q`a_s`imem
+
+%|- VC3_imem : PROOF
+%|- (then (skosimp) (comm-rewrites) (expand Complete_till_ID_EX) (assert)
+%|-  (case-analysis))
+%|- QED
 
 
 VC_id_rs: LEMMA abs_ex_rs(Complete_till_EX_MEM(I_step(q))) = abs_id_rs(Complete_till_ID_EX(q))
@@ -520,6 +537,7 @@ VC4_llflag_case_1: LEMMA NOT syn1_stall_issue(q) IMPLIES Complete_till_ID_EX(I_s
 %|-  (expand Complete_till_ID_EX) (expand Complete_till_IF_ID) (assert)
 %|-  (auto-rewrite abs_id_exception) (assert) (case-analysis))
 %|- QED
+
 
 
 VC_stall_Squash: LEMMA syn1_stall_issue(q) AND NOT Squash_rest?_till_ID_EX(q) IMPLIES NOT Squash_rest?_till_ID_EX(I_step(q))
@@ -867,11 +885,23 @@ comm_epc_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q)
 %|-     (assert) (case-analysis))
 %|-    (then (assert) (expand I_step) (assert)))))
 %|- QED
+
 comm_llflag_case3: CLAIM NOT Squash_rest?_till_IF_ID(q) AND NOT syn1_stall_issue(q) IMPLIES Complete_till_IF_ID(I_step(q))`a_s`llflag = A_step(Complete_till_IF_ID(q)`a_s)`llflag
 
 comm_imem_1: CLAIM I_step(q)`a_s`imem = q`a_s`imem
 
+%|- comm_imem_1 : PROOF
+%|- (then (skosimp) (impl-defs) (auto-rewrite! ifu_update) (expand I_step) (assert)
+%|-  (case-analysis))
+%|- QED
+
+
 comm_imem_2: CLAIM Complete_till_IF_ID(q)`a_s`imem = q`a_s`imem
+
+%|- comm_imem_2 : PROOF
+%|- (then (skosimp) (comm-rewrites)(stop-rewrite VC_exception_pass)  (expand Complete_till_IF_ID) (assert)
+%|-  (case-analysis))
+%|- QED
 
 
 % Level:  3个主要case
