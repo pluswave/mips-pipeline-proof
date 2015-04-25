@@ -204,61 +204,162 @@ mem_addr_calcu(a): bvec[32] = LET ins = instr(a) IN rs(a) + sign_extend[16](32)(
 action_exception(a) : bool = A_step(a) = a WITH [ pc := exception_entry, epc := a`pc, llflag := FALSE] 
 
 
+is_abs_opcode?(a)(op: abs_opcode): bool = imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = op 
+
+
+add_overflow?(bv1, bv2: bvec[32] ): bool = overflow( bv1, bv2 )
+
+sub_overflow?(bv1, bv2: bvec[32] ): bool = bv2int(bv2)=minint[32] XOR overflow(bv1,-bv2)
+
 % case: pc exception
 exceptionpc_prop:     THEOREM NOT imem_addr_pred(a`pc) IMPLIES action_exception(a)
 
 % case: instr exception
-exceptioninstr_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = invalid IMPLIES action_exception(a)
+exceptioninstr_prop: THEOREM is_abs_opcode?(a)(invalid) IMPLIES action_exception(a)
 
 % case: instr = add and not overflow
-add_nooverflow_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = add AND NOT overflow(rs(a) , rt(a) ) 
+add_nooverflow_prop: THEOREM is_abs_opcode?(a)(add) AND NOT overflow(rs(a) , rt(a) ) 
      IMPLIES A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), rs(a) + rt(a)) ]
 
 % case: instr = add and overflow
-add_overflow_prop:   THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = add AND overflow(rs(a), rt(a)) IMPLIES action_exception(a)
+add_overflow_prop:   THEOREM is_abs_opcode?(a)(add) AND overflow(rs(a), rt(a)) IMPLIES action_exception(a)
 
 
 % case instr = addu
-addu_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = addu IMPLIES 
+addu_prop: THEOREM is_abs_opcode?(a)(addu) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), rs(a) + rt(a)) ]
 
+
+sub_nooverflow_prop: THEOREM is_abs_opcode?(a)(sub) AND NOT sub_overflow?(rs(a), rt(a)) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4,  rf := assign_r(a`rf, rd(instr(a)), rs(a) - rt(a))  ]
+
+sub_overflow_prop: THEOREM is_abs_opcode?(a)(sub) AND sub_overflow?(rs(a), rt(a)) IMPLIES action_exception(a)
+
+subu_prop: THEOREM is_abs_opcode?(a)(subu) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4,  rf := assign_r(a`rf, rd(instr(a)), rs(a) - rt(a))  ]
+
+and_prop: THEOREM is_abs_opcode?(a)(and) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4,  rf := assign_r(a`rf, rd(instr(a)), rs(a) AND rt(a)) ]
+
+or_prop: THEOREM is_abs_opcode?(a)(or) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4,  rf := assign_r(a`rf, rd(instr(a)), rs(a) OR rt(a)) ]
+
+nor_prop: THEOREM is_abs_opcode?(a)(nor) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4,  rf := assign_r(a`rf, rd(instr(a)), rs(a) XOR rt(a)) ]
+
+slt_prop: THEOREM is_abs_opcode?(a)(slt) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4,  rf := assign_r(a`rf, rd(instr(a)), alu_slt(rs(a), rt(a))) ]
+
+sltu_prop: THEOREM is_abs_opcode?(a)(sltu) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4,  rf := assign_r(a`rf, rd(instr(a)), alu_sltu(rs(a), rt(a))) ]
+
 % case: srl:
-srl_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = srl IMPLIES
+srl_prop: THEOREM is_abs_opcode?(a)(srl) IMPLIES
      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), right_shift(shamt(instr(a)), rt(a))) ]
 
 
 % case: sll:
-sll_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = sll IMPLIES
+sll_prop: THEOREM is_abs_opcode?(a)(sll) IMPLIES
      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rd(instr(a)), left_shift(shamt(instr(a)), rt(a))) ]
 
+jr_prop: THEOREM is_abs_opcode?(a)(jr) IMPLIES
+     A_step(a) = a WITH [ pc := rs(a) ]
 
 
-% case instr = lw AND exception
+addi_overflow_prop: THEOREM is_abs_opcode?(a)(addi) AND add_overflow?(rs(a),sign_extend[16](32)(short_immed_of(instr(a)))) IMPLIES action_exception(a)
+    
+addi_nooverlow_prop: THEOREM is_abs_opcode?(a)(addi) AND NOT add_overflow?(rs(a),sign_extend[16](32)(short_immed_of(instr(a)))) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)),  rs(a) + sign_extend[16](32)(short_immed_of(instr(a)))) ]
 
-lw_exception_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = lw AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+addiu_prop: THEOREM is_abs_opcode?(a)(addiu) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)),  rs(a) + sign_extend[16](32)(short_immed_of(instr(a)))) ]
 
-lw_noexception_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = lw AND dmem_addr_valid?(mem_addr_calcu(a)) IMPLIES
+ori_prop: THEOREM is_abs_opcode?(a)(ori) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)),  rs(a) OR zero_extend[16](32)(short_immed_of(instr(a)))) ]
+
+andi_prop: THEOREM is_abs_opcode?(a)(andi) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)),  rs(a) AND zero_extend[16](32)(short_immed_of(instr(a)))) ]
+
+slti_prop: THEOREM is_abs_opcode?(a)(slti) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)),  alu_slt(rs(a) , sign_extend[16](32)(short_immed_of(instr(a))))) ]
+
+sltiu_prop: THEOREM is_abs_opcode?(a)(slti) IMPLIES
+    A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)),  alu_sltu(rs(a) , zero_extend[16](32)(short_immed_of(instr(a))))) ]
+
+
+lw_exception_prop: THEOREM is_abs_opcode?(a)(lw) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+lw_noexception_prop: THEOREM is_abs_opcode?(a)(lw) AND dmem_addr_valid?(mem_addr_calcu(a)) IMPLIES
       A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), read32(a`dmem, mem_addr_calcu(a))) ]
 
-% case instr = sb
-sb_exception_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = sb AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+lh_exception_prop: THEOREM is_abs_opcode?(a)(lh) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
 
-sb_noexcption_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = sb AND dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES 
+lh_noexception_prop: THEOREM is_abs_opcode?(a)(lh) AND dmem_addr_valid?(mem_addr_calcu(a)) IMPLIES
+      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), sign_extend[16](32)(read16(a`dmem, mem_addr_calcu(a)))) ]
+
+lhu_exception_prop: THEOREM is_abs_opcode?(a)(lhu) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+lhu_noexception_prop: THEOREM is_abs_opcode?(a)(lhu) AND dmem_addr_valid?(mem_addr_calcu(a)) IMPLIES
+      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), zero_extend[16](32)(read16(a`dmem, mem_addr_calcu(a)))) ]
+
+
+lb_exception_prop: THEOREM is_abs_opcode?(a)(lb) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+lb_noexception_prop: THEOREM is_abs_opcode?(a)(lb) AND dmem_addr_valid?(mem_addr_calcu(a)) IMPLIES
+      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), sign_extend[8](32)(read8(a`dmem, mem_addr_calcu(a)))) ]
+
+
+lbu_exception_prop: THEOREM is_abs_opcode?(a)(lbu) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+lbu_noexception_prop: THEOREM is_abs_opcode?(a)(lbu) AND dmem_addr_valid?(mem_addr_calcu(a)) IMPLIES
+      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), zero_extend[8](32)(read8(a`dmem, mem_addr_calcu(a)))) ]
+
+
+ll_exception_prop: THEOREM is_abs_opcode?(a)(ll) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+ll_noexception_prop: THEOREM is_abs_opcode?(a)(ll) AND dmem_addr_valid?(mem_addr_calcu(a)) IMPLIES
+      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), read32(a`dmem, mem_addr_calcu(a))), llflag := TRUE ]
+
+
+sb_exception_prop: THEOREM is_abs_opcode?(a)(sb) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+sb_noexcption_prop: THEOREM is_abs_opcode?(a)(sb) AND dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES 
      A_step(a) =  a WITH [ pc := a`pc + 4, dmem := write8(a`dmem, mem_addr_calcu(a), rt(a)^(7,0) ) ]
 
 
+sh_exception_prop: THEOREM is_abs_opcode?(a)(sh) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+sh_noexcption_prop: THEOREM is_abs_opcode?(a)(sh) AND dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES 
+     A_step(a) =  a WITH [ pc := a`pc + 4, dmem := write16(a`dmem, mem_addr_calcu(a), rt(a)^(15,0) ) ]
+
+
+sw_exception_prop: THEOREM is_abs_opcode?(a)(sw) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+sw_noexcption_prop: THEOREM is_abs_opcode?(a)(sw) AND dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES 
+     A_step(a) =  a WITH [ pc := a`pc + 4, dmem := write32(a`dmem, mem_addr_calcu(a), rt(a) ) ]
+
+
+sc_exception_prop: THEOREM is_abs_opcode?(a)(sc) AND NOT dmem_addr_valid?( mem_addr_calcu(a) ) IMPLIES action_exception(a)
+
+sc_noexcption_atom_prop: THEOREM is_abs_opcode?(a)(sc) AND dmem_addr_valid?( mem_addr_calcu(a) ) AND a`llflag IMPLIES 
+     A_step(a) =  a WITH [ pc := a`pc + 4, dmem := write32(a`dmem, mem_addr_calcu(a), rt(a)), llflag := FALSE ]
+
+sc_noexcption_noatom_prop: THEOREM is_abs_opcode?(a)(sc) AND dmem_addr_valid?( mem_addr_calcu(a) ) AND NOT a`llflag IMPLIES 
+     A_step(a) =  a WITH [ pc := a`pc + 4 ]
+
+
 % beq
-beq_jmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = beq AND rs(a) = rt(a) IMPLIES 
+beq_jmp_prop: THEOREM is_abs_opcode?(a)(beq) AND rs(a) = rt(a) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4 + sign_extend[16](32)(short_immed_of(instr(a))) ]
 
-beq_nojmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = beq AND rs(a) /= rt(a) IMPLIES 
+beq_nojmp_prop: THEOREM is_abs_opcode?(a)(beq) AND rs(a) /= rt(a) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4 ]
 
 %|- bne_jmp_prop: PROOF
 %|- beq_nojmp_prop : PROOF
 %|- (then (skosimp*) (auto-rewrite! concat_bottom)
 %|-  (auto-rewrite! zero_extend) (auto-rewrite! shamt)
-%|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
+%|-  (auto-rewrite-theory specification_trans_props :always? T) (expand is_abs_opcode?) (expand A_step) (flatten) (assert)
 %|-  (apply (then (decompose-equality 2)
 %|-          (auto-rewrite-theory specification_trans :always? T)
 %|-          (auto-rewrite-theory specification_muxers :always? T) (assert)
@@ -268,35 +369,36 @@ beq_nojmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = beq 
 %|- QED
 
 % bne
-bne_jmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = bne AND rs(a) /= rt(a) IMPLIES 
+bne_jmp_prop: THEOREM is_abs_opcode?(a)(bne) AND rs(a) /= rt(a) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4 + sign_extend[16](32)(short_immed_of(instr(a))) ]
 
 
-bne_nojmp_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = bne AND rs(a) = rt(a) IMPLIES 
+bne_nojmp_prop: THEOREM is_abs_opcode?(a)(bne) AND rs(a) = rt(a) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4 ]
 
 
 % lui
-lui_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = lui IMPLIES 
+lui_prop: THEOREM is_abs_opcode?(a)(lui) IMPLIES 
      A_step(a) = a WITH [ pc := a`pc + 4, rf := assign_r(a`rf, rt(instr(a)), zero_extend_lsend[16](32)(short_immed_of(instr(a)))) ]
 
 
 % j
-j_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = j IMPLIES 
+j_prop: THEOREM is_abs_opcode?(a)(j) IMPLIES 
      A_step(a) = a WITH [ pc := (a`pc + 4) ^ (31, 28) o long_immed_of(instr(a)) o b00  ]
 
 % jal
-jal_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = jal IMPLIES 
+jal_prop: THEOREM is_abs_opcode?(a)(jal) IMPLIES 
      A_step(a) = a WITH [
       pc := (a`pc + 4) ^ (31, 28) o long_immed_of(instr(a)) o b00,
       rf := assign_r(rf(a), ra_reg, pc(a) + 4 )
        ]
 
 
+
 %|- *_prop :PROOF
 %|- (then (skosimp*)
 %|-  (auto-rewrite! concat_bottom) (auto-rewrite! zero_extend) (auto-rewrite! shamt) 
-%|-  (auto-rewrite-theory specification_trans_props :always? T) (assert)
+%|-  (auto-rewrite-theory specification_trans_props :always? T) (expand is_abs_opcode?) (expand A_step) (flatten) (assert)
 %|-  (apply (then (decompose-equality +) 
 %|-  (auto-rewrite-theory specification_trans :always? T) 
 %|-  (auto-rewrite-theory specification_muxers :always? T)
@@ -311,34 +413,3 @@ jal_prop: THEOREM imem_addr_pred(a`pc) AND get_abs_opcode(instr(a)) = jal IMPLIE
 END specification_trans_props
 
 
-specification_trans_props_2 : THEORY
-BEGIN
-
-IMPORTING specification_trans
-IMPORTING specification
-
-
-%|- *_prop_* :PROOF
-%|- (then (skosimp*) 
-%|-  (auto-rewrite-theory specification :always? T)
-%|-  (assert)
-%|-  (skosimp*)
-%|-  (assert)
-%|-  (rewrite -1)
-%|-  (auto-rewrite-theory specification_trans :always? T) 
-%|-  (auto-rewrite-theory datapath :always? T)
-%|-  (auto-rewrite-theory instruction_decoder :always? T)
-%|-  (assert) 
-%|-  (apply (then (split-abs-opcode)  
-%|-     (auto-rewrite! concat_bottom) (auto-rewrite! zero_extend) (auto-rewrite! shamt))))
-%|- QED
-
-
-spec_trans_prop_0: THEOREM specification.A_step = specification_trans.A_step IMPLIES spec_0_goal
-
-spec_trans_prop_1: THEOREM specification.A_step = specification_trans.A_step IMPLIES spec_1_goal 
-
-
-
-
-END specification_trans_props_2
