@@ -2,7 +2,7 @@ implementation_state_1: THEORY
 BEGIN
 
 IMPORTING specification_state
-IMPORTING datapath
+IMPORTING specification_muxers
 %5级流水线模型
 
 
@@ -60,8 +60,6 @@ Projection(q): state_A = q`a_s
 
 
 % 方便使用
-IMPORTING instruction_decoder
-IMPORTING specification_muxers
 impl_dec_id(q): decoder_signal = decoder(get_abs_opcode(q`id_s`instr))
 
 impl_dec_ex(q): decoder_signal = decoder(get_abs_opcode(q`ex_s`instr))
