@@ -108,16 +108,17 @@ Rewrite_id_bne_not_jr: LEMMA impl_dec_id(q)`bne? IMPLIES NOT impl_dec_id(q)`jr?
 Rewrite_ex_alu_wb_1: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl_dec_ex(q)`wbsrc = aluout IMPLIES syn1_ex_need_rs_ex(q) OR syn1_ex_need_rt_ex(q)
 Rewrite_ex_alu_wb_2: LEMMA q`ex_s`state = normal AND impl_dec_ex(q)`wb? AND impl_dec_ex(q)`wbsrc = aluout IMPLIES syn1_ex_need_rt_ex(q) OR impl_dec_ex(q)`selb /= rt
 
-%|- Rewrite_ex_alu_wb_* : PROOF
-%|- (then (skosimp) (impl-defs) (assert)
-%|-  (auto-rewrite-theory decoder_props) (assert) (case-analysis))
-%|- QED
-
 %|- Rewrite_ex_* : PROOF
 %|- Rewrite_id_* : PROOF
 %|- (then (skosimp) (impl-defs) (assert)
 %|-  (auto-rewrite-theory decoder_props) (assert))
 %|- QED
+
+%|- Rewrite_ex_alu_wb_* : PROOF
+%|- (then (skosimp) (impl-defs) (assert)
+%|-  (auto-rewrite-theory decoder_props) (assert) (case-analysis))
+%|- QED
+
 
 
 % 有没有更好的办法避免手动重写？拆成标准形式！！
